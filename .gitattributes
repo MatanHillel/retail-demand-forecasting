@@ -1,0 +1,20 @@
+# Normalize line endings so a Windows checkout and a Linux CI runner see identical bytes.
+# This matters for determinism (PRD §40): clean_data.csv / features.csv must be byte-identical
+# across machines, and shell scripts must keep LF endings or Linux cannot execute them.
+* text=auto eol=lf
+
+*.sh   text eol=lf
+Makefile text eol=lf
+*.csv  text eol=lf
+*.md   text eol=lf
+*.yaml text eol=lf
+*.yml  text eol=lf
+*.json text eol=lf
+
+# Binary artifacts — never touched.
+*.parquet binary
+*.joblib  binary
+*.png     binary
+*.xlsx    binary
+*.pptx    binary
+*.zip     binary
