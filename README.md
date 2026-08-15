@@ -36,7 +36,16 @@ ruff check src tests
 names: `from pipeline.config import ...`, `from flow.main import ...`, `from app.data_access import
 ...`.
 
-`make install` / `make test` / `make lint` wrap the same three commands.
+`make install` / `make test` / `make lint` wrap the same three commands. Without GNU make (e.g.
+Windows), use `scripts/install.sh`, `scripts/test.sh`, `scripts/lint.sh`.
+
+`uv` is a supported alternative for creating the environment, and it can fetch CPython 3.11 itself:
+
+```bash
+uv venv --python 3.11 .venv
+uv pip install --python .venv -r requirements.txt pip
+.venv/Scripts/python.exe -m pip install -e .    # Linux/macOS: .venv/bin/python -m pip install -e .
+```
 
 ## Repository layout (PRD §41)
 
