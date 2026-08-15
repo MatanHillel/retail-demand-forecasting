@@ -1,0 +1,18 @@
+{
+  "dead_train": 15965,
+  "dead_test": 6184,
+  "dead_rate_train": 0.115,
+  "dead_rate_test": 0.096,
+  "dead_logreg_auc": 0.836,
+  "dead_logreg_prauc": 0.316,
+  "dead_hgb_auc": 0.854,
+  "dead_hgb_prauc": 0.363,
+  "newprod_n": 1259,
+  "newprod_label_median_units_d15_90": 284.0,
+  "newprod_hit_threshold_units": 780.0,
+  "newprod_train": 858,
+  "newprod_test": 401,
+  "newprod_hgb_auc": 0.909,
+  "newprod_u14_only_auc": 0.873,
+  "newprod_spearman_u14_vs_d15_90": 0.837
+}

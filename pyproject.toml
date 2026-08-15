@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "retail_demand_forecasting"
+version = "0.1.0"
+description = "Retail Demand Forecasting & Inventory Planning System (UCI Online Retail II) — PRD v1.3"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+license = { text = "MIT" }
+authors = [
+    { name = "Daniel B. Fogel" },
+    { name = "Matan Hillel" },
+    { name = "Dor Hll" },
+]
+# Runtime dependencies are pinned in requirements.txt (PRD §43: versions pinned).
+dependencies = []
+
+[project.urls]
+Specification = "docs/PRD.md"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+markers = [
+    "slow: long-running tests, excluded with -m 'not slow'",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["pipeline", "crews", "flow", "app"]

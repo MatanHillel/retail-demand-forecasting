@@ -1,0 +1,53 @@
+{
+  "linreg_log_log": {
+    "wMAPE": 56.1,
+    "bias": -45.9
+  },
+  "linreg_log_log_capped": {
+    "wMAPE": 56.1,
+    "bias": -45.9
+  },
+  "linreg_log_log_smeared": {
+    "wMAPE": 89.0,
+    "bias": 55.1,
+    "smear": 2.87
+  },
+  "ridge_log_log": {
+    "wMAPE": 56.1,
+    "bias": -45.9
+  },
+  "hgb_log_target": {
+    "wMAPE": 50.0,
+    "bias": -25.6
+  },
+  "quantile_0.8_policy": {
+    "shortage_units": 548363,
+    "excess_units": 1416547,
+    "fill_rate_pct": 82.0,
+    "stockout_events_pct": 20.1
+  },
+  "quantile_0.9_policy": {
+    "shortage_units": 359248,
+    "excess_units": 2486400,
+    "fill_rate_pct": 88.2,
+    "stockout_events_pct": 11.2
+  },
+  "quantile_0.95_policy": {
+    "shortage_units": 257491,
+    "excess_units": 3629606,
+    "fill_rate_pct": 91.6,
+    "stockout_events_pct": 5.6
+  },
+  "ma3_plus_1.645_robust_sigma": {
+    "rows": 18115,
+    "shortage_units": 250959,
+    "excess_units": 2760011,
+    "fill_rate_pct": 89.2
+  },
+  "ma3_plus_2.5_robust_sigma": {
+    "rows": 18115,
+    "shortage_units": 178658,
+    "excess_units": 4158068,
+    "fill_rate_pct": 92.3
+  }
+}

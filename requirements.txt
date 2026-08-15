@@ -1,0 +1,36 @@
+# Retail Demand Forecasting & Inventory Planning System — pinned runtime + tooling deps.
+# Python 3.11 only (PRD §43). Every package is pinned with == for reproducibility (PRD §40).
+# Install:  pip install -r requirements.txt && pip install -e .
+
+# --- data & numerics -------------------------------------------------------
+numpy==1.26.4
+pandas==2.2.3
+scikit-learn==1.5.2
+pyarrow==17.0.0
+
+# --- charts (Matplotlib / Seaborn only — course requirement, PRD §31) ------
+matplotlib==3.9.2
+seaborn==0.13.2
+
+# --- config, validation, serialization -------------------------------------
+PyYAML==6.0.2
+pydantic==2.9.2
+joblib==1.4.2
+Jinja2==3.1.4
+openpyxl==3.1.5
+requests==2.32.3
+
+# --- app -------------------------------------------------------------------
+streamlit==1.39.0
+
+# --- agents ----------------------------------------------------------------
+crewai==0.86.0
+crewai-tools==0.17.0
+
+# --- deliverables ----------------------------------------------------------
+python-pptx==1.0.2
+
+# --- quality ---------------------------------------------------------------
+pytest==8.3.3
+pytest-cov==5.0.0
+ruff==0.7.4

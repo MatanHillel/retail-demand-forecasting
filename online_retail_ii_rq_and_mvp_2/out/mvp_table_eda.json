@@ -1,0 +1,170 @@
+{
+  "n_full_months": 24,
+  "first_month": "2009-12",
+  "last_month": "2011-11",
+  "n_products": 4892,
+  "product_month_cells": 117408,
+  "nonzero_cells_pct": 54.8,
+  "largest_single_line_qty": 80995,
+  "product_months_units_gt_10000": 17,
+  "units_describe_nonzero": {
+    "count": 64395.0,
+    "mean": 172.0,
+    "std": 541.0,
+    "min": 1.0,
+    "50%": 37.0,
+    "90%": 433.0,
+    "99%": 1877.0,
+    "max": 74215.0
+  },
+  "universe_rule_by_k": {
+    "k=1": {
+      "rows_total": 53169,
+      "rows_train": 37273,
+      "rows_test": 15896,
+      "products": 4570,
+      "zero_target_pct": 11.8,
+      "naive_last_month_wMAPE": 55.3,
+      "naive_ma3_wMAPE": 53.6
+    },
+    "k=3": {
+      "rows_total": 63256,
+      "rows_train": 44763,
+      "rows_test": 18493,
+      "products": 4710,
+      "zero_target_pct": 20.1,
+      "naive_last_month_wMAPE": 55.7,
+      "naive_ma3_wMAPE": 54.7
+    },
+    "k=6": {
+      "rows_total": 70678,
+      "rows_train": 50245,
+      "rows_test": 20433,
+      "products": 4854,
+      "zero_target_pct": 27.1,
+      "naive_last_month_wMAPE": 55.7,
+      "naive_ma3_wMAPE": 54.8
+    },
+    "k=12": {
+      "rows_total": 78671,
+      "rows_train": 55050,
+      "rows_test": 23621,
+      "products": 4854,
+      "zero_target_pct": 34.0,
+      "naive_last_month_wMAPE": 55.8,
+      "naive_ma3_wMAPE": 54.8
+    }
+  },
+  "comparison_k6": {
+    "rows_train": 50245,
+    "rows_test": 20433,
+    "naive_last_month": {
+      "wMAPE": 55.7,
+      "bias_pct": -8.5
+    },
+    "naive_ma3": {
+      "wMAPE": 54.8,
+      "bias_pct": -17.4
+    },
+    "linear_regression_clipped": {
+      "wMAPE": 57.3,
+      "bias_pct": -12.6
+    },
+    "linear_regression_negative_preds_pct": 4.8,
+    "poisson_regression": {
+      "wMAPE": 79.5,
+      "bias_pct": -47.2
+    },
+    "hgb_absolute_error": {
+      "wMAPE": 49.2,
+      "bias_pct": -24.3
+    },
+    "hgb_poisson": {
+      "wMAPE": 54.0,
+      "bias_pct": 2.6
+    },
+    "hgb_squared_error": {
+      "wMAPE": 54.3,
+      "bias_pct": 0.5
+    },
+    "hgb_abs_by_target_month": {
+      "2011-06": {
+        "wMAPE": 50.2,
+        "naive_ma3": 58.9
+      },
+      "2011-07": {
+        "wMAPE": 45.4,
+        "naive_ma3": 53.6
+      },
+      "2011-08": {
+        "wMAPE": 47.8,
+        "naive_ma3": 54.4
+      },
+      "2011-09": {
+        "wMAPE": 52.4,
+        "naive_ma3": 54.0
+      },
+      "2011-10": {
+        "wMAPE": 51.0,
+        "naive_ma3": 57.4
+      },
+      "2011-11": {
+        "wMAPE": 47.6,
+        "naive_ma3": 52.1
+      }
+    },
+    "hgb_abs_by_abc": {
+      "A": {
+        "rows": 5743,
+        "wMAPE": 44.9,
+        "naive_ma3": 48.9
+      },
+      "B": {
+        "rows": 6263,
+        "wMAPE": 55.0,
+        "naive_ma3": 64.1
+      },
+      "C": {
+        "rows": 8427,
+        "wMAPE": 72.3,
+        "naive_ma3": 82.8
+      }
+    }
+  },
+  "sigma_available_products": 4101,
+  "inventory_backtest_z1645": {
+    "ml_policy": {
+      "rows": 18115,
+      "shortage_units": 174468,
+      "excess_units": 3976612,
+      "fill_rate_pct": 92.5,
+      "stockout_events_pct": 7.1
+    },
+    "naive_ma3_policy": {
+      "rows": 18115,
+      "shortage_units": 165966,
+      "excess_units": 4243370,
+      "fill_rate_pct": 92.9,
+      "stockout_events_pct": 6.5
+    },
+    "naive_last_month_policy": {
+      "rows": 18115,
+      "shortage_units": 146135,
+      "excess_units": 4344627,
+      "fill_rate_pct": 93.7,
+      "stockout_events_pct": 6.6
+    }
+  },
+  "inventory_backtest_no_safety_stock": {
+    "ml_policy": {
+      "shortage_units": 882074,
+      "excess_units": 286930,
+      "fill_rate_pct": 62.2
+    },
+    "naive_ma3_policy": {
+      "shortage_units": 799220,
+      "excess_units": 479337,
+      "fill_rate_pct": 65.7
+    }
+  }
+}

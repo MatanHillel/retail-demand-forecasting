@@ -1,0 +1,37 @@
+# --- raw data is NEVER committed (PRD §42) ---------------------------------
+data/raw/*
+!data/raw/.gitkeep
+
+# --- logs ------------------------------------------------------------------
+logs/*
+!logs/.gitkeep
+
+# --- staging area for pipeline runs (promoted on success only, PRD §39) ----
+artifacts/_staging/
+
+# NOTE: data/processed/, artifacts/ and config/ are intentionally NOT ignored.
+
+# --- python ----------------------------------------------------------------
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# --- secrets ---------------------------------------------------------------
+.env
+.env.local
+
+# --- editors / OS ----------------------------------------------------------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
