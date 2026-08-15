@@ -1,0 +1,20 @@
+# Inventory-policy configuration (PRD §24, §25, §26, §27, §35A, §56).
+# The policy is a deterministic rule applied to the forecast — the model never predicts inventory.
+
+lead_time_months: 1                     # §24
+
+z: 1.645                                # §25 — default service factor
+z_options: [1.28, 1.645, 2.05]          # §25 — values offered in the app
+
+sigma:
+  mad_scale: 1.4826                     # §26 — Robust σ = mad_scale × MAD of out-of-sample residuals
+  min_residuals_product: 6              # §26 — fewer residuals ⇒ fall back a level
+  fallback_levels: ["product", "abc_group", "global"]   # §27
+
+abc:                                    # §27, §35A E6 — training-window ABC for modelling use
+  a_cum_share: 0.80
+  b_cum_share: 0.95
+
+disclaimer: >-
+  z = 1.645 does not guarantee a 95% fill rate; the achieved fill rate is measured
+  in the back-test (PRD §25)

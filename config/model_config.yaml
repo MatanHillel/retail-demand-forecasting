@@ -1,0 +1,74 @@
+# Modelling configuration (PRD §14, §17, §19, §20, §21, §22, §40, §56).
+# Model ids are normative — they are referenced literally by later issues and by the app.
+
+seed: 42                                # §40 — single global seed
+
+active_rule:
+  k: 6                                  # §14 — active = ≥ 1 positive sale in the previous k months
+
+features:                               # §17 — forecast origin is t−1; only calendar attributes of t
+  - lag_1
+  - lag_2
+  - lag_3
+  - rolling_mean_3
+  - rolling_mean_6
+  - rolling_median_6
+  - rolling_std_3
+  - rolling_max_6
+  - nonzero_months_6
+  - months_since_last_sale
+  - product_age_months
+  - invoice_count_lag_1
+  - avg_unit_price_lag_1
+  - target_month_of_year
+  - target_quarter
+
+split:                                  # §21 — temporal split, never shuffled
+  first_target_month: "2010-03"
+  train_targets: {start: "2010-03", end: "2011-05"}
+  validation_targets: {start: "2011-01", end: "2011-05"}
+  holdout_targets: {start: "2011-06", end: "2011-11"}
+  never_score: ["2011-12"]              # partial month — never enters a metric
+
+backtest:                               # §22 — rolling origins
+  first_origin: "2010-05"
+  last_origin: "2011-10"
+
+models:                                 # §19
+  B1_last_month:
+    kind: baseline
+  B2_ma3:
+    kind: baseline
+    main_baseline: true
+  B3_seasonal_naive:
+    kind: baseline
+    reference_only: true
+  M1_linear:
+    kind: linear_regression
+    clip_negative_for_business: true
+  M2_gbm_poisson:
+    kind: hist_gradient_boosting
+    loss: poisson
+    primary: true
+    params: {learning_rate: 0.05, max_leaf_nodes: 31, max_iter: 300}
+  M3_gbm_squared:
+    kind: hist_gradient_boosting
+    loss: squared_error
+    params: {learning_rate: 0.05, max_leaf_nodes: 31, max_iter: 300}
+  M4_gbm_absolute:
+    kind: hist_gradient_boosting
+    loss: absolute_error
+    params: {learning_rate: 0.05, max_leaf_nodes: 31, max_iter: 300}
+
+tuning:                                 # §19 — small grid, rolling folds inside the training window
+  grid:
+    learning_rate: [0.03, 0.05, 0.1]
+    max_leaf_nodes: [15, 31, 63]
+    max_iter: [100, 200, 400]
+  metric: wmape
+
+champion_gates:                         # §20 — executed by code, never by hand
+  max_abs_bias: 0.10
+  monthly_abs_bias_report_threshold: 0.25
+  tie_wmape_points: 1.0
+  meaningful_improvement_points: 2.0
