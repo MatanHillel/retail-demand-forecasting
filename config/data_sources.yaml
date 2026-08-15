@@ -1,0 +1,20 @@
+# Raw-data sources and integrity check (PRD §42, §48).
+# Addition beyond §56: holds the download URLs and the expected SHA-256 hash.
+# Raw data is never committed — a script downloads it and verifies the hash.
+
+preferred: uci
+
+uci:
+  url: "https://archive.ics.uci.edu/static/public/502/online+retail+ii.zip"
+  archive_member: "online_retail_II.xlsx"
+  sheets: ["Year 2009-2010", "Year 2010-2011"]
+
+kaggle:
+  dataset: "mashlyn/online-retail-ii-uci"
+  file: "online_retail_II.csv"
+
+raw_dir: "data/raw"
+
+expected_sha256: null                   # filled by US-03 (`python -m pipeline.download --record-hash`)
+
+citation: "Chen, D. (2019). Online Retail II [Dataset]. UCI Machine Learning Repository. CC BY 4.0"

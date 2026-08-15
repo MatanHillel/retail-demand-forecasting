@@ -1,0 +1,31 @@
+# Cleaning rules for the raw Online Retail II extract (PRD §10, §11, §12, §56).
+# Every threshold lives here, never in code (PRD §40).
+
+raw:
+  required_columns:
+    - "Invoice"
+    - "StockCode"
+    - "Description"
+    - "Quantity"
+    - "InvoiceDate"
+    - "Price"
+    - "Customer ID"
+    - "Country"
+  first_month: "2009-12"
+  last_full_month: "2011-11"
+  partial_months:
+    - "2011-12"          # through 9 Dec 2011 — never scored (PRD §8, §16, §21)
+
+rules:
+  cancellation_prefixes: ["C"]        # §10 step 5 — cancellations, not subtracted from demand (§9)
+  adjustment_prefixes: ["A"]          # §10 step 5 — bad-debt adjustments
+  drop_quantity_at_or_below: 0        # §10 step 6
+  drop_price_at_or_below: 0           # §10 step 7, §9
+  duplicate_policy: "drop_exact"      # §11 — all 8 columns identical
+  non_inventory_file: "config/non_inventory_stockcodes.csv"
+  inventory_code_pattern: "^\\d{5}[A-Z]{0,2}$|^DCGS"   # §12 rule of thumb
+
+warnings:
+  duplicate_max_row_share: 0.015      # §11 — warn if duplicates exceed this share of rows
+  duplicate_max_units_share: 0.01     # §11 — warn if duplicates exceed this share of units
+  abnormal_line_quantity: 5000        # §10 — larger lines are flagged, never removed
