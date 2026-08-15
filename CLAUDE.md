@@ -101,13 +101,74 @@ Import style is src-layout with an editable install: `from pipeline.config impor
 `from flow.main import ...`, `from app.data_access import ...`. Never rename these paths — later
 issues reference them literally.
 
-## 4. Commands
+## 4. Environment — read this before running anything
+
+**Python 3.11 only.** `pyproject.toml` declares `requires-python = ">=3.11,<3.12"` (PRD §43) and CI
+runs 3.11. On the primary dev machine (Daniel, Windows) the *global* interpreter is **3.14**, and
+3.12 is also installed — neither may be used. Building the venv with the wrong one makes
+`pip install -e .` fail with:
+
+```
+ERROR: Package 'retail-demand-forecasting' requires a different Python: 3.12.6 not in '<3.12,>=3.11'
+```
+
+That error means the venv was built with the wrong interpreter. **Never** widen `requires-python` to
+make an install succeed — the pin is a PRD requirement and must match CI.
+
+**Never rely on venv activation persisting.** Each shell invocation is independent, so an activated
+environment does not carry across commands. Call the interpreter by path instead:
+
+```powershell
+.venv\Scripts\python.exe -m pytest -q          # Windows
+.venv/bin/python -m pytest -q                  # Linux / CI
+```
+
+Before any long task, confirm which interpreter is live:
+`.venv\Scripts\python.exe -c "import sys; print(sys.version)"` → must start with `3.11`.
+
+**Installs go through `uv`.** It is far faster than pip and resolves the same pinned set.
+`requirements.txt` (`==` pins) remains the single source of truth: do **not** add `[tool.uv]` to
+`pyproject.toml`, do not create or commit `uv.lock`, and do not migrate to uv-native dependency
+management — CI installs with plain pip and the two must stay in agreement.
+
+**OneDrive.** The repo lives inside a synced OneDrive folder. OneDrive can lock files mid-operation
+and cause spurious `Permission denied` / `Access is denied` errors during `uv pip install`,
+`Remove-Item .venv`, or artifact writes. Retry once; if it repeats, ask the user to pause OneDrive
+syncing rather than engineering around it in code.
+
+## 5. Commands
+
+### Setup — Windows / PowerShell (primary dev environment)
+
+PowerShell 5.1 does not accept `&&` as a statement separator — run these one line at a time.
+
+```powershell
+winget install --id=astral-sh.uv -e            # one-time: install uv
+
+Remove-Item -Recurse -Force .venv -ErrorAction SilentlyContinue
+uv venv --python 3.11                          # uv fetches 3.11 itself if absent
+.\.venv\Scripts\Activate.ps1
+python --version                               # must print 3.11.x
+uv pip install -r requirements.txt
+uv pip install -e .
+```
+
+If `Activate.ps1` is blocked by execution policy:
+`Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`, then retry.
+
+### Setup — Linux / macOS / CI
 
 ```bash
-# setup (Python 3.11 only)
-python -m venv .venv && source .venv/bin/activate
+python3.11 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt && pip install -e .
+```
 
+### Project commands
+
+Prefix each with the venv interpreter (`.venv\Scripts\python.exe` on Windows, `.venv/bin/python`
+elsewhere) unless the environment is verified active.
+
+```bash
 # data
 python -m pipeline.download --record-hash     # download + hash
 python -m pipeline.download --make-sample     # tests/fixtures/raw_sample.csv for CI
@@ -118,18 +179,22 @@ python -m pipeline --no-llm --sample --skip-tuning   # fast run on the fixture
 python -m pipeline                            # LLM mode (crews run; needs an API key)
 
 # app
-streamlit run src/app/Home.py
+python -m streamlit run src/app/Home.py
 
 # quality
-pytest -q
-pytest -q -m "not slow"
-ruff check src tests
+python -m pytest -q
+python -m pytest -q -m "not slow"
+python -m ruff check src tests
 python scripts/mvp_acceptance_check.py        # §49 checklist -> acceptance_report.md
 ```
 
+Written as `python -m <tool>` deliberately: invoking `pytest` / `ruff` / `streamlit` as bare
+executables can pick up a globally installed copy running under the wrong Python. `python -m` always
+uses the interpreter you named.
+
 Exit codes: `0` success, `2` validation failure (graceful stop), `1` unexpected exception.
 
-## 5. Architecture
+## 6. Architecture
 
 ### CrewAI Flow (§37) — ten steps
 
@@ -192,7 +257,7 @@ Active product (§14): at least one positive sale in the `k = 6` months before t
 Temporal split (§21): train targets **2010-03 … 2011-05**; internal validation folds
 **2011-01 … 2011-05**; hold-out **2011-06 … 2011-11**; back-test origins **2010-05 … 2011-10**.
 
-## 6. Configuration
+## 7. Configuration
 
 Never write a constant into code — read it from config.
 
@@ -206,7 +271,7 @@ Never write a constant into code — read it from config.
 
 `config_snapshot()` is recorded in every `run_log.json`.
 
-## 7. Working on an issue
+## 8. Working on an issue
 
 Work is tracked in **Linear**, project `AI_DEV_final_poject` (team `AI_DEV_final_project`), issues
 `AI-5` … `AI-44`, titled `US-00` … `US-39` in execution order with `blocked by` relations and
@@ -221,8 +286,9 @@ a **Report for review** instruction, **Acceptance criteria**, and **Claude Code 
 
 **Definition of done for any issue:**
 
-1. Every acceptance-criteria checkbox in the issue verifiably passes — run them, do not assume.
-2. The named tests exist and pass; `ruff check src tests` is clean.
+1. Every acceptance-criteria checkbox in the issue verifiably passes — run them in the 3.11 venv (§4),
+   do not assume. Paste the actual command output into the Linear issue as evidence.
+2. The named tests exist and pass; `python -m ruff check src tests` is clean.
 3. No PRD invariant from §2 above is broken (grep for the forbidden patterns listed in the issue).
 4. The **Report for review** is written: a step-by-step, plain-language explanation for a
    non-programmer, defining every technical term on first use, plus a one-line description of every
@@ -239,7 +305,7 @@ contract → Data Analyst Crew (US-03–12), then the Flow (US-31–33). Dor Hll
 metrics → models → back-test → evaluation → σ → inventory → champion → reports → Data Scientist Crew
 (US-13–26). Check the Linear assignee before starting something outside your slice.
 
-## 8. Tests (§55)
+## 9. Tests (§55)
 
 | File | Proves |
 |---|---|
@@ -255,7 +321,7 @@ metrics → models → back-test → evaluation → σ → inventory → champio
 
 Add tests in the file the PRD names — do not invent a parallel structure.
 
-## 9. Style and conventions
+## 10. Style and conventions
 
 - Python 3.11, pandas / numpy / scikit-learn / CrewAI / Streamlit / Matplotlib+Seaborn, Joblib,
   Pydantic v2, pytest. Versions pinned in `requirements.txt`.
@@ -271,7 +337,7 @@ Add tests in the file the PRD names — do not invent a parallel structure.
 - Deterministic file writes: fixed sort order, fixed `float_format`, no index column.
 - Never log or commit an API key. `--no-llm` mode must import no LLM class at all.
 
-## 10. Common pitfalls
+## 11. Common pitfalls
 
 - Computing a rolling window without excluding month `t` — the single most likely way to break the
   project. Recompute a lag by hand from `clean_data.csv` when in doubt.
@@ -284,7 +350,7 @@ Add tests in the file the PRD names — do not invent a parallel structure.
 - Silently dropping rows so two models are compared on different row sets — all policies and
   candidates are scored on identical rows.
 
-## 11. Glossary
+## 12. Glossary
 
 **Forecast origin** — last month whose data may be used. **Active product** — ≥ 1 sale in the
 previous `k` months. **wMAPE** — Σ|error| / Σ actual. **Bias** — Σ(forecast − actual) / Σ actual.
