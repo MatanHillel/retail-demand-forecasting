@@ -75,13 +75,19 @@ class ValidationResult(BaseModel):
 def write_validation_report(
     result: ValidationResult,
     path: Path | None = None,
-    run_id: str | None = None,
+    *,
+    run_id: str,
 ) -> Path:
     """Write ``validation_report.json`` and return the path it was written to.
 
     Written on failure *and* on success, so the app can always tell which step last ran and
     whether it passed. This file deliberately bypasses the staging area: the app must be able to
     read it precisely because the run failed (PRD §39).
+
+    ``run_id`` is keyword-only and mandatory. This file is never cleared between runs, so a reader
+    must compare its run id with the one in ``run_log.json`` and ignore it when they differ. A
+    report written without an id can never match, and would leave a failed run showing no reason
+    at all. Pass ``run_id=ctx.run_id``.
     """
     destination = Path(path) if path is not None else paths.VALIDATION_REPORT
     destination.parent.mkdir(parents=True, exist_ok=True)
