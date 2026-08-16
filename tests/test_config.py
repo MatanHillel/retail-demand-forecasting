@@ -8,6 +8,7 @@ Indicative PRD numbers (row counts, wMAPE) are never asserted here.
 from __future__ import annotations
 
 import json
+import re
 
 import pytest
 from pydantic import ValidationError
@@ -187,7 +188,9 @@ def test_data_sources_keys() -> None:
     assert len(sources.uci.sheets) == 2
     assert sources.kaggle.dataset == "mashlyn/online-retail-ii-uci"
     assert sources.raw_dir == "data/raw"
-    assert sources.expected_sha256 is None  # US-03 records it
+    # US-03 recorded the digest via `python -m pipeline.download --record-hash`.
+    assert sources.expected_sha256 is not None
+    assert re.fullmatch(r"[0-9a-f]{64}", sources.expected_sha256)
     assert "CC BY 4.0" in sources.citation
 
 
