@@ -1,0 +1,79 @@
+[
+  {
+    "id": "E2",
+    "title": "Demand over time, seasonality and year-on-year growth",
+    "table_names": [
+      "E02_monthly_units_revenue",
+      "E02_seasonal_index",
+      "E02_sep_nov_share",
+      "E02_yoy"
+    ],
+    "figure_names": [
+      "E02_monthly_units",
+      "E02_seasonal_index"
+    ],
+    "one_line_summary_placeholder": ""
+  },
+  {
+    "id": "E3",
+    "title": "Weekday and hour-of-day trading patterns",
+    "table_names": [
+      "E03_hour",
+      "E03_weekday"
+    ],
+    "figure_names": [
+      "E03_hour",
+      "E03_weekday"
+    ],
+    "one_line_summary_placeholder": ""
+  },
+  {
+    "id": "E4",
+    "title": "Product portfolio churn",
+    "table_names": [
+      "E04_new_disappearing_by_quarter",
+      "E04_products_per_month"
+    ],
+    "figure_names": [
+      "E04_products_per_month"
+    ],
+    "one_line_summary_placeholder": ""
+  },
+  {
+    "id": "E5",
+    "title": "Product lifecycle",
+    "table_names": [
+      "E05_lifecycle",
+      "E05_lifecycle_summary"
+    ],
+    "figure_names": [
+      "E05_lifecycle_hist"
+    ],
+    "one_line_summary_placeholder": ""
+  },
+  {
+    "id": "E6",
+    "title": "ABC concentration and the Pareto curve",
+    "table_names": [
+      "E06_abc_table",
+      "E06_pareto"
+    ],
+    "figure_names": [
+      "E06_pareto"
+    ],
+    "one_line_summary_placeholder": ""
+  },
+  {
+    "id": "E7",
+    "title": "Top twenty products by units and by revenue",
+    "table_names": [
+      "E07_top20_revenue",
+      "E07_top20_units"
+    ],
+    "figure_names": [
+      "E07_top20_revenue",
+      "E07_top20_units"
+    ],
+    "one_line_summary_placeholder": ""
+  }
+]

@@ -1,0 +1,10 @@
+quarter,new_products,disappearing_products,is_left_censored,is_right_censored
+2009Q4,3009,130,True,False
+2010Q1,546,251,False,False
+2010Q2,166,175,False,False
+2010Q3,191,180,False,False
+2010Q4,176,271,False,False
+2011Q1,70,145,False,False
+2011Q2,242,240,False,False
+2011Q3,179,233,False,False
+2011Q4,144,,False,True
