@@ -1,13 +1,14 @@
 # Cross-cutting interfaces — the single source of truth
 
-**Status:** generated from the merged code of US-00, US-01 and US-02 (branch `feature/US-02-run-context`).
+**Status:** generated from the merged code of US-00, US-01 and US-02, extended with the US-05 panel
+surface (branch `matan/pr1-us03-05-data-pipeline`).
 **Rule:** every issue that uses these modules links to this file instead of restating the API. If an
 issue's prompt and this file disagree, **this file wins** — it is derived from code that exists, the
 issue text was written before the code did.
 
-**Maintenance:** regenerate and re-sweep the open issues after every foundational merge (US-02 here;
-next US-05 `clean_data.csv`, US-13 `features.csv`). Add a section per foundational module; never
-document a function that is not yet merged.
+**Maintenance:** regenerate and re-sweep the open issues after every foundational merge (US-05 here;
+next US-13 `features.csv`). Add a section per foundational module; never document a function that is
+not yet merged.
 
 ---
 
@@ -118,9 +119,62 @@ FlowValidationError(result, message=None)          # str(exc) always starts "FLO
 A deterministic step never decides what to do about bad data: it **returns** a `ValidationResult`.
 The caller writes the report and raises `FlowValidationError`.
 
+## 5. `pipeline.panel` & `pipeline.active` — the hand-off panel (US-05)
+
+```python
+PANEL_COLUMNS: list[str]                                            # the 12 columns, in order
+build_panel(clean_df, returns_lines, cfg: CleaningConfig, ctx) -> pd.DataFrame
+validate_panel(panel, cfg: CleaningConfig) -> ValidationResult      # pure: no ctx, no disk
+active_mask(panel, k: int | None = None) -> pd.DataFrame            # k=None → active_rule.k
+run() -> int                                                        # python -m pipeline.panel
+```
+
+`build_panel` **must run inside `ctx.step(...)`** — it calls `ctx.log_rows`. It writes
+`data/processed/clean_data.csv` through `ctx.out(...)`, registers it as artifact key
+`clean_data`, records the shape change as `log_rows("panel_zero_fill", …)` and the breakdown as
+metrics (`panel_rows`, `panel_products`, `panel_nonzero_rows`, `panel_zero_filled_rows`,
+`panel_partial_rows`, `panel_zero_share`, `returns_without_panel_row`). It does **not** validate:
+the caller runs `validate_panel`, writes the report with `run_id=ctx.run_id` and raises
+`FlowValidationError` — same division of labour as §4.
+
+### `clean_data.csv` — published schema, extend but never rename
+
+Grain: one row per `(stock_code, month)` — the **primary key**. Sorted by `stock_code, month`.
+
+| # | Column | Type | Meaning |
+|---|---|---|---|
+| 1 | `month` | `str` `YYYY-MM` | calendar month |
+| 2 | `stock_code` | `str` | the key; normalised (stripped, upper-case) |
+| 3 | `description` | `str`, nullable | canonical description — **display only** |
+| 4 | `units_sold` | `int64 ≥ 0` | **the target**: gross demand (§9) |
+| 5 | `gross_revenue` | `float ≥ 0` | Σ quantity × price |
+| 6 | `avg_unit_price` | `float ≥ 0` | revenue-weighted; last known price in a zero month |
+| 7 | `invoice_count` | `int64 ≥ 0` | distinct invoices |
+| 8 | `sale_line_count` | `int64 ≥ 0` | sales lines |
+| 9 | `customer_count` | `int64 ≥ 0` | distinct customers — **diagnostic, never a feature** |
+| 10 | `max_line_qty` | `int64 ≥ 0` | largest single line |
+| 11 | `returned_units` | `int64 ≥ 0` | Σ \|qty\| on `C` invoices — **EDA only, never a feature** |
+| 12 | `is_partial_month` | `bool` | true only for `cleaning_config → raw.partial_months` |
+
+Invariants enforced by `validate_panel` (rule names are the `Violation.rule` values):
+`schema`, `primary_key`, `non_negative`, `is_partial_month`, `month_range`,
+`first_row_is_a_sale`, `contiguous_months`, `panel_end`. In words: every product runs from its
+**first observed sale** (that first row always has `units_sold > 0` — there are no rows before it)
+to the last panel month, one row per month with **no gap**, and zero-sales months are explicit
+rows, not missing ones.
+
+### `active_mask` — the §14 rule, one definition for the whole project
+
+`is_active(t) = any(units_sold > 0 in months t−k … t−1)`. Month `t` itself is **never** inspected,
+which is the same no-leakage boundary as the forecast origin (§16) — changing the sales of month
+`t` can only change months after `t`. Returns `stock_code, month, is_active` for every panel row.
+It counts **rows**, so it is only correct on the zero-filled panel (`contiguous_months` above);
+never call it on a frame with missing months. EDA (US-10) sweeps several `k`; feature engineering
+(US-13) uses the configured one — do not re-implement either.
+
 ---
 
-## 5. Usage rules — the checklist every issue is swept against
+## 6. Usage rules — the checklist every issue is swept against
 
 1. **Every artifact write goes through `ctx.out(path)`.** `promote()` only moves paths registered by
    that call; a direct write to a final path bypasses staging, and for that file the §39 guarantee
@@ -159,3 +213,15 @@ The caller writes the report and raises `FlowValidationError`.
 11. **No secrets in artifacts.** `redact()` protects log lines and error messages, but
     `config_snapshot` is serialised into `run_log.json` verbatim and `artifacts/` is committed. If a
     credential ever enters a YAML file, extend redaction to the snapshot first.
+12. **Hand a canonical path to `ctx.out()` and `ctx.record_artifact()` in repo-relative form:**
+    `ctx.out(paths.CLEAN_DATA.relative_to(paths.PROJECT_ROOT))`. `out()` rebases a *relative* path
+    onto the run's base directory, while an *absolute* `paths.*` constant is returned unchanged —
+    so the absolute form silently escapes a test `base_dir` (writing into the real repo) and raises
+    under `staging=True`. `record_artifact()` has the mirror-image problem: it stores
+    `path.relative_to(base_dir)` and falls back to the **absolute** string when that fails, so an
+    absolute constant under a test base dir lands in `run_log.json` as a machine-specific path.
+    The relative form is correct in all three modes.
+13. **Raw data and inputs are not artifacts.** `ctx.out()` is for run *outputs*. Downloaded raw
+    files, the parquet read-cache and committed test fixtures are written to their real locations
+    directly — staging them would copy git-ignored bulk into `artifacts/_staging/` and promote it
+    into the repo on every successful run.
