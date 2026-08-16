@@ -1,0 +1,11 @@
+step_no,step,rule,rows_before,rows_removed,rows_after,units_before,units_removed,units_after,revenue_after
+1,dataset_intake,load_raw,1067371,0,1067371,10608492,0,10608492,19287250.57
+2,raw_schema_validation,required_columns,1067371,0,1067371,10608492,0,10608492,19287250.57
+3,normalise_keys,strip_upper_stockcode,1067371,0,1067371,10608492,0,10608492,19287250.57
+4,convert_dates,month_and_partial_flag,1067371,0,1067371,10608492,0,10608492,19287250.57
+5,remove_cancellations_adjustments,"cancellation_prefixes,adjustment_prefixes",1067371,19500,1047871,10608492,-490986,11099478,20961532.51
+6,remove_nonpositive_quantity,drop_quantity_at_or_below,1047871,3457,1044414,11099478,-573085,11672563,20961532.51
+7,remove_nonpositive_price,drop_price_at_or_below,1044414,2745,1041669,11672563,252259,11420304,20961532.51
+8,remove_non_inventory_codes,non_inventory_file,1041669,4667,1037002,11420304,17655,11402649,20110166.25
+9,remove_exact_duplicates,duplicate_policy,1037002,33664,1003338,11402649,214610,11188039,19643846.87
+10,canonical_descriptions,most_frequent_nonempty,1003338,0,1003338,11188039,0,11188039,19643846.87
