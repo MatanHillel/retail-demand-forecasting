@@ -1,15 +1,15 @@
 # Cross-cutting interfaces — the single source of truth
 
 **Status:** generated from the merged code of US-00, US-01 and US-02, extended with the US-05 panel
-surface (branch `matan/pr1-us03-05-data-pipeline`) and the US-06 EDA foundations (branch
-`matan/pr2-us06-08`).
+surface (branch `matan/pr1-us03-05-data-pipeline`), the US-06 EDA foundations (branch
+`matan/pr2-us06-08`) and the US-13 feature surface (§10).
 **Rule:** every issue that uses these modules links to this file instead of restating the API. If an
 issue's prompt and this file disagree, **this file wins** — it is derived from code that exists, the
 issue text was written before the code did.
 
-**Maintenance:** regenerate and re-sweep the open issues after every foundational merge (US-05 here;
-next US-13 `features.csv`). Add a section per foundational module; never document a function that is
-not yet merged.
+**Maintenance:** regenerate and re-sweep the open issues after every foundational merge (US-13
+here; next the model surface of US-17). Add a section per foundational module; never document a
+function that is not yet merged.
 
 ---
 
@@ -412,3 +412,77 @@ Rules these modules add to §6:
   imports `pkg_resources`) and `onnxruntime==1.20.1` (crewai → chromadb instantiates its default
   ONNX embedding function at import time; ≥ 1.21 and pyarrow 17 ship incompatible DLLs on Windows,
   so `import pandas` followed by `import crewai` dies). Both are in `requirements.txt`.
+
+---
+
+## 10. `pipeline.features` — the model input (US-13)
+
+```python
+FEATURE_COLUMNS: list[str]      # the 15 §17 features, in model_config.yaml -> features order
+FEATURES_COLUMNS: list[str]     # the 20 columns of features.csv, in order
+
+build_features(panel_df, k: int, first_target: str, last_target: str,
+               cfg: ModelConfig, include_target: bool = True) -> pd.DataFrame   # pure
+build_features_for_origin(panel_df, origin: str, k: int, cfg: ModelConfig) -> pd.DataFrame
+write_features(frame, ctx) -> Path
+run() -> int                    # python -m pipeline.features
+```
+
+**`build_features` is pure and takes no `ctx`.** The issue's original signature had `ctx=None` on a
+function that also had to write through `ctx.out()` — the two cannot both hold, so the write lives
+in `write_features(frame, ctx)` instead (§6 rules 1 and 5). `build_features_for_origin` likewise
+returns a frame. Callers that need the file (US-16, US-23) call both, inside a `ctx.step(...)`.
+
+### `features.csv` — published schema, extend but never rename
+
+Grain: one row per `(stock_code, target_month)` — the **primary key**. Sorted by `stock_code,
+target_month`. Written with `float_format="%.6f"`, `index=False`, `lineterminator="\n"`.
+
+`stock_code, forecast_origin, target_month,` then the fifteen features `lag_1, lag_2, lag_3,
+rolling_mean_3, rolling_mean_6, rolling_median_6, rolling_std_3, rolling_max_6, nonzero_months_6,
+months_since_last_sale, product_age_months, invoice_count_lag_1, avg_unit_price_lag_1,
+target_month_of_year, target_quarter,` then `y, is_active`.
+
+`forecast_origin` is always `target_month − 1` month. `is_active` is always true in the saved file —
+the column documents the §14 filter that produced the rows. `y` is `units_sold` in the target month
+and is **absent** when `include_target=False` (and from `build_features_for_origin`). The file
+covers `split.first_target_month … raw.last_full_month` (2010-03 … 2011-11) only: **2011-12 is
+never a target here** (§16, §21), it is served on demand by `build_features_for_origin`.
+
+### The three window conventions — the part that is easy to get wrong
+
+Every feature is computed from the units series **shifted one month back inside each product**, so
+month `t` is unreachable rather than filtered out. Only `target_month_of_year` and `target_quarter`
+come from `t` — calendar attributes, known in advance, the one exception §17 allows.
+
+* **Months before a product's first sale are observed zeros.** The panel has no rows there (§5
+  `first_row_is_a_sale`), so `build_features` reindexes onto the full observed month grid first.
+  They count as zero-demand months: a product launched 2010-06 has `rolling_mean_6` divided by
+  **six** at target 2010-09.
+* **Months before the dataset's first observed month are unobserved and excluded**, so early
+  windows are *truncated*: at target 2010-03 only three months exist and `rolling_mean_6` is
+  divided by **three**. Same arithmetic sum, different divisor — do not conflate the two cases.
+* **`months_since_last_sale` and `product_age_months` both count months of history through the
+  origin**, so each reads `1` when the relevant sale was in `t−1`. `product_age_months` is a lower
+  bound for products already selling in the first observed month (left-censoring, §47).
+
+`rolling_std_3` is the **population** standard deviation (`ddof=0`), which also makes a
+one-observation window `0.0` rather than `NaN`. `build_features` raises rather than filling if any
+feature is `NaN`, if `cfg.features` disagrees with `FEATURE_COLUMNS`, or if any `forecast_origin` is
+not one month before its target.
+
+Rules this module adds to §6:
+
+* **Reuse `active_mask`, never re-derive the §14 rule** — `build_features` merges its output rather
+  than recomputing "sold in the last k months", which is what keeps `features.csv` and E8's
+  `E08_zero_share_by_k.csv` in agreement (they match exactly at `k = 6`: 72,182 rows, 4,688
+  products, 25.94 % zero targets).
+* **`k` is a parameter; the window lengths 3 and 6 are not.** Those are part of the feature
+  *definitions* — the names encode them — and live as module constants; the active-rule `k` comes
+  from `model_config.yaml` and is never a literal.
+* **Read `clean_data.csv` with `contract.read_panel`**, not `pd.read_csv` (§8) — `stock_code` must
+  stay a string.
+* **The column and uniqueness guarantees describe a standalone run.** Under the Flow
+  (`staging=True`) the file is at `artifacts/_staging/<run_id>/data/processed/features.csv` until
+  `promote()`; a check against the final path before promotion reads the previous run's file (§6
+  rule 7).
