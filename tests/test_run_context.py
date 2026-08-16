@@ -384,11 +384,26 @@ def test_write_validation_report_has_the_required_keys(tmp_path) -> None:
 
 def test_validation_report_is_written_for_a_passing_step_too(tmp_path) -> None:
     result = ValidationResult(step="feature_validation", passed=True, checked_rows=10)
-    path = write_validation_report(result, path=tmp_path / "validation_report.json")
+    path = write_validation_report(
+        result, path=tmp_path / "validation_report.json", run_id="r-2"
+    )
     report = json.loads(path.read_text(encoding="utf-8"))
     assert report["passed"] is True
     assert report["violations"] == []
-    assert report["run_id"] is None
+    assert report["run_id"] == "r-2"
+
+
+def test_validation_report_cannot_be_written_without_a_run_id(tmp_path) -> None:
+    """The run id is mandatory by signature, not by discipline.
+
+    The report is never cleared between runs, so a reader must match its run id against
+    ``run_log.json``. A report with no id can never match, and a failed run would show the user a
+    banner with no reason. Making the argument keyword-only and required turns that mistake from
+    invisible into impossible.
+    """
+    result = ValidationResult(step="feature_validation", passed=True, checked_rows=10)
+    with pytest.raises(TypeError):
+        write_validation_report(result, path=tmp_path / "validation_report.json")
 
 
 def test_flow_validation_error_message_starts_with_flow_stopped() -> None:

@@ -284,6 +284,26 @@ Each issue body is the source of truth for that unit of work and contains: the u
 a **Report for review** instruction, **Acceptance criteria**, and **Claude Code execution settings**
 (model / reasoning effort / plan mode). Follow the issue's own execution settings.
 
+**Before writing any code — the drift check (mandatory).**
+
+Every issue in this project was written from the PRD *before* the code existed, so its prompt
+describes an API that was guessed. Cross-cutting modules are now real, and the issue text drifts
+from them. Therefore the first step of every issue, before a single line is written:
+
+1. Read `docs/interfaces.md` — the generated, authoritative surface of `pipeline.paths`,
+   `pipeline.config`, `pipeline.run_context` and `pipeline.validation`, plus the usage rules every
+   step must obey (`ctx.out`, `ctx.step`, `log_rows`, `run_id`, the staging bypass list).
+2. Read the current source of every module this issue imports. Not the issue's description of it.
+3. Compare the issue's prompt and acceptance criteria against both, and report every mismatch —
+   wrong signature, non-existent config key, path written without `ctx.out()`, criterion that cannot
+   pass — as a comment on the issue **before** implementing.
+4. Where an issue carries a `## 8. Interface corrections` section, that section outranks the prompt
+   above it.
+
+If the issue you are implementing is itself a foundational module (one that later issues import),
+its definition of done additionally includes: add its section to `docs/interfaces.md`, and re-run
+the drift check across every issue that depends on it.
+
 **Definition of done for any issue:**
 
 1. Every acceptance-criteria checkbox in the issue verifiably passes — run them in the 3.11 venv (§4),
