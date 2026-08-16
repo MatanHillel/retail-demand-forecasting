@@ -1,0 +1,11 @@
+[
+  {
+    "duplicate_rows":34335,
+    "duplicate_row_share":0.0322,
+    "duplicate_units":198713,
+    "duplicate_units_share":0.0187,
+    "row_share_threshold":0.015,
+    "units_share_threshold":0.01,
+    "warning":true
+  }
+]

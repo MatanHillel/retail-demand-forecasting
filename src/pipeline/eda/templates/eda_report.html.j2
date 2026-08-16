@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ title }}</title>
+{# Inline CSS only. A stylesheet link would make the report depend on the network (§35A.2). #}
+<style>
+  :root { color-scheme: light; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+                 sans-serif;
+    line-height: 1.55; color: #1a1a1a; background: #ffffff;
+    margin: 0 auto; max-width: 60rem; padding: 2rem 1.5rem 4rem;
+  }
+  h1 { font-size: 1.9rem; margin: 0 0 0.25rem; }
+  h2 { font-size: 1.35rem; margin: 2.75rem 0 0.5rem; padding-top: 0.75rem;
+       border-top: 2px solid #0072B2; }
+  h3 { font-size: 1.05rem; margin: 1.5rem 0 0.4rem; color: #444; }
+  p  { margin: 0.4rem 0 0.9rem; }
+  .subtitle { color: #555; margin: 0 0 1.5rem; }
+  .meta { border: 1px solid #ddd; border-radius: 6px; padding: 0.75rem 1rem; background: #fafafa;
+          margin-bottom: 1.5rem; }
+  .meta dl { display: grid; grid-template-columns: max-content 1fr; gap: 0.2rem 1rem; margin: 0; }
+  .meta dt { font-weight: 600; color: #444; }
+  .meta dd { margin: 0; font-variant-numeric: tabular-nums; word-break: break-all; }
+  .toc ol { columns: 2; column-gap: 2rem; padding-left: 1.25rem; }
+  .note { color: #555; font-size: 0.9rem; font-style: italic; }
+  .warn { color: #8a4b00; background: #fff6e6; border-left: 4px solid #E69F00;
+          padding: 0.5rem 0.85rem; border-radius: 0 4px 4px 0; }
+  figure { margin: 1rem 0 1.5rem; }
+  figure img { max-width: 100%; height: auto; display: block; border: 1px solid #eee; }
+  figcaption { font-size: 0.88rem; color: #555; margin-top: 0.35rem; }
+  .table-wrap { overflow-x: auto; margin: 0.5rem 0 0.75rem; }
+  table { border-collapse: collapse; font-size: 0.85rem; width: 100%; }
+  th, td { border: 1px solid #e2e2e2; padding: 0.3rem 0.55rem; text-align: right;
+           white-space: nowrap; }
+  th { background: #f2f6f9; font-weight: 600; text-align: right; }
+  td:first-child, th:first-child { text-align: left; }
+  tbody tr:nth-child(even) { background: #fbfbfb; }
+  footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #ddd;
+           color: #666; font-size: 0.85rem; }
+  code { background: #f4f4f4; padding: 0.05rem 0.3rem; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<h1>{{ title }}</h1>
+<p class="subtitle">{{ subtitle }}</p>
+
+<div class="meta">
+  <dl>
+    <dt>Dataset</dt><dd>{{ dataset }}</dd>
+    <dt>Period</dt><dd>{{ period }}</dd>
+    <dt>Run id</dt><dd>{{ run_id }}</dd>
+    <dt>Data SHA-256</dt><dd>{{ data_sha256 or "not recorded (no raw file was loaded)" }}</dd>
+    <dt>Generated</dt><dd>{{ generated_at }}</dd>
+    <dt>Source</dt><dd>{{ source }}</dd>
+  </dl>
+</div>
+
+<p class="note">
+  Every number on this page was computed by the pipeline and written to a table under
+  <code>artifacts/reports/eda_tables/</code>. All figures are embedded in this file, so it renders
+  offline with no network access.
+</p>
+
+<nav class="toc">
+  <h2 style="border-top:none;padding-top:0;">Contents</h2>
+  <ol>
+    {% for section in sections %}
+    <li><a href="#{{ section.id }}">{{ section.id }} &mdash; {{ section.title }}</a></li>
+    {% endfor %}
+  </ol>
+</nav>
+
+{% for section in sections %}
+<section id="{{ section.id }}">
+  <h2>{{ section.id }} &mdash; {{ section.title }}</h2>
+
+  {% for figure in section.figures %}
+  <figure>
+    <img src="data:image/png;base64,{{ figure.base64 }}" alt="{{ figure.name }}">
+    <figcaption>{{ figure.name }}.png</figcaption>
+  </figure>
+  {% endfor %}
+
+  {% for table in section.tables %}
+  <h3>{{ table.name }}</h3>
+  <div class="table-wrap">{{ table.html | safe }}</div>
+  {% if table.truncated %}
+  <p class="note">
+    Showing the first {{ table.shown }} of {{ table.rows }} rows &mdash; the full table is in
+    <code>{{ table.path }}</code>.
+  </p>
+  {% endif %}
+  {% endfor %}
+
+  {% if section.id == "E1" and exclusion_rows %}
+  <h3>Non-inventory exclusion list, with reasons</h3>
+  <p class="note">
+    Stock codes removed at cleaning step 8 because they are not physical products (PRD &sect;12).
+    A code marked <code>review_needed</code> was found in the data but is not on the list and was
+    <strong>not</strong> excluded &mdash; that decision belongs to a human.
+  </p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>stock_code</th><th>reason</th><th>status</th></tr></thead>
+      <tbody>
+      {% for row in exclusion_rows %}
+        <tr><td>{{ row.stock_code }}</td><td>{{ row.reason }}</td><td>{{ row.status }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</section>
+{% endfor %}
+
+<section id="appendix">
+  <h2>Appendix &mdash; every table behind this report</h2>
+  <p class="note">
+    These are the only permitted source of numbers for any narrative about this dataset
+    (PRD &sect;35A.2).
+  </p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>analysis</th><th>table</th><th>rows</th></tr></thead>
+      <tbody>
+      {% for row in appendix %}
+        <tr><td>{{ row.analysis }}</td><td>{{ row.name }}</td><td>{{ row.rows }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<footer>
+  {{ footer }}
+</footer>
+
+</body>
+</html>

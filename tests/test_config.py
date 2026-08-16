@@ -166,7 +166,10 @@ def test_non_inventory_codes_shape_and_columns() -> None:
     frame = load_non_inventory_codes()
     assert list(frame.columns) == EXPECTED_NON_INVENTORY_COLUMNS
     assert len(frame) == EXPECTED_NON_INVENTORY_ROWS
-    assert (frame["status"] == "initial").all()
+    # `status` is not fixed at "initial": the US-07 review step rewrites it to "confirmed" for
+    # every code it finds in the data and appends "review_needed" rows for codes that are not on
+    # the list yet (PRD §12). Only the three legal values are an invariant.
+    assert set(frame["status"]) <= {"initial", "confirmed", "review_needed"}
     assert not frame["reason"].str.strip().eq("").any()
 
 

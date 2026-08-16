@@ -1,0 +1,28 @@
+stock_code,rows,units,revenue,sample_description,in_exclusion_list
+POST,2122,10108,112341.0000,POSTAGE,True
+DOT,1446,2938,322647.4700,DOTCOM POSTAGE,True
+M,1426,4612,-82781.2700,Manual,True
+C2,282,716,13386.0000,CARRIAGE,True
+D,177,-2872,-13484.5400,Discount,True
+S,104,-98,-6065.8000,SAMPLES,True
+BANK CHARGES,102,-42,-35562.6290,Bank Charges,True
+ADJUST,67,5,6835.2400,Adjustment by john on 26/01/2010 16,True
+AMAZONFEE,43,-35,-260763.5800,AMAZON FEE,True
+GIFT_0001_20,29,53,471.0600,Dotcomgiftshop Gift Voucher £20.00,True
+GIFT_0001_30,29,77,610.0900,Dotcomgiftshop Gift Voucher £30.00,True
+PADS,19,17,-36.5830,PADS TO MATCH ALL CUSHIONS,True
+CRUK,16,-16,-7933.4300,CRUK Commission,True
+GIFT_0001_10,16,55,126.2100,Dotcomgiftshop Gift Voucher £10.00,True
+TEST001,15,55,202.5000,This is a test product.,True
+GIFT_0001_50,8,19,253.5900,Dotcomgiftshop Gift Voucher £50.00,True
+GIFT_0001_40,7,18,166.0900,Dotcomgiftshop Gift Voucher £40.00,True
+B,6,6,-147614.0800,Adjust bad debt,True
+GIFT_0001_80,4,12,0.0000,Dotcomgiftshop Gift Voucher £80.00,True
+ADJUST2,3,3,731.0500,Adjustment by Peter on Jun 25 2010 ,True
+GIFT_0001_70,3,13,59.5700,Dotcomgiftshop Gift Voucher £70.00,True
+SP1002,3,-22,14.7500,KID'S CHALKBOARD/EASEL,True
+GIFT_0001_60,2,13,0.0000,,True
+GIFT_0001_90,2,12,0.0000,,True
+TEST002,2,2,1.0000,This is a test product.,True
+C3,1,-4999,0.0000,,True
+GIFT,1,-9,0.0000,,True

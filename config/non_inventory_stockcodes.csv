@@ -1,29 +1,29 @@
 stock_code,reason,status
-POST,postage,initial
-DOT,dotcom postage,initial
-C2,carriage,initial
-C3,carriage / adjustment,initial
-M,manual,initial
-m,manual (lower-case variant; merges with M after key normalisation),initial
-D,discount,initial
-S,samples,initial
-BANK CHARGES,bank charges,initial
-ADJUST,adjustment,initial
-ADJUST2,adjustment,initial
-AMAZONFEE,marketplace fee,initial
-CRUK,commission,initial
-TEST001,test row,initial
-TEST002,test row,initial
-B,bad debt,initial
-GIFT,gift voucher,initial
-gift_0001_10,gift voucher,initial
-gift_0001_20,gift voucher,initial
-gift_0001_30,gift voucher,initial
-gift_0001_40,gift voucher,initial
-gift_0001_50,gift voucher,initial
-gift_0001_60,gift voucher,initial
-gift_0001_70,gift voucher,initial
-gift_0001_80,gift voucher,initial
-gift_0001_90,gift voucher,initial
-PADS,packaging (price 0.001 — review),initial
-SP1002,real product with non-standard code; only 3 return rows — documented not modelled,initial
+POST,postage,confirmed
+DOT,dotcom postage,confirmed
+C2,carriage,confirmed
+C3,carriage / adjustment,confirmed
+M,manual,confirmed
+m,manual (lower-case variant; merges with M after key normalisation),confirmed
+D,discount,confirmed
+S,samples,confirmed
+BANK CHARGES,bank charges,confirmed
+ADJUST,adjustment,confirmed
+ADJUST2,adjustment,confirmed
+AMAZONFEE,marketplace fee,confirmed
+CRUK,commission,confirmed
+TEST001,test row,confirmed
+TEST002,test row,confirmed
+B,bad debt,confirmed
+GIFT,gift voucher,confirmed
+gift_0001_10,gift voucher,confirmed
+gift_0001_20,gift voucher,confirmed
+gift_0001_30,gift voucher,confirmed
+gift_0001_40,gift voucher,confirmed
+gift_0001_50,gift voucher,confirmed
+gift_0001_60,gift voucher,confirmed
+gift_0001_70,gift voucher,confirmed
+gift_0001_80,gift voucher,confirmed
+gift_0001_90,gift voucher,confirmed
+PADS,packaging (price 0.001 — review),confirmed
+SP1002,real product with non-standard code; only 3 return rows — documented not modelled,confirmed

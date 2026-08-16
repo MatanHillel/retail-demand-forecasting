@@ -1,0 +1,1104 @@
+{
+  "generated_at": "2026-08-16T13:06:48.670747+00:00",
+  "run_id": "20260816T130627Z-674246",
+  "data_sha256": "bcbe73b35f5b7babf197fb0cb983a11f5d9ff929078d4aa53d171b1f2df2e980",
+  "raw_profile": {
+    "rows": 1067371,
+    "columns": [
+      "Invoice",
+      "StockCode",
+      "Description",
+      "Quantity",
+      "InvoiceDate",
+      "Price",
+      "Customer ID",
+      "Country",
+      "source_sheet"
+    ],
+    "dtypes": {
+      "Invoice": "object",
+      "StockCode": "object",
+      "Description": "object",
+      "Quantity": "int64",
+      "InvoiceDate": "datetime64[ns]",
+      "Price": "float64",
+      "Customer ID": "float64",
+      "Country": "object",
+      "source_sheet": "object"
+    },
+    "total_units": 10608492,
+    "total_revenue": 19287250.56799999,
+    "distinct_invoices": 53628,
+    "distinct_stock_codes": 5131,
+    "distinct_customers": 5942,
+    "date_range": {
+      "first": "2009-12-01T07:45:00",
+      "last": "2011-12-09T12:50:00"
+    },
+    "rows_per_month": [
+      {
+        "month": "2009-12",
+        "rows": 45228,
+        "units": 420088,
+        "is_partial": false
+      },
+      {
+        "month": "2010-01",
+        "rows": 31555,
+        "units": 375363,
+        "is_partial": false
+      },
+      {
+        "month": "2010-02",
+        "rows": 29388,
+        "units": 368402,
+        "is_partial": false
+      },
+      {
+        "month": "2010-03",
+        "rows": 41511,
+        "units": 489370,
+        "is_partial": false
+      },
+      {
+        "month": "2010-04",
+        "rows": 34057,
+        "units": 351971,
+        "is_partial": false
+      },
+      {
+        "month": "2010-05",
+        "rows": 35323,
+        "units": 364095,
+        "is_partial": false
+      },
+      {
+        "month": "2010-06",
+        "rows": 39983,
+        "units": 388253,
+        "is_partial": false
+      },
+      {
+        "month": "2010-07",
+        "rows": 33383,
+        "units": 302201,
+        "is_partial": false
+      },
+      {
+        "month": "2010-08",
+        "rows": 33306,
+        "units": 451803,
+        "is_partial": false
+      },
+      {
+        "month": "2010-09",
+        "rows": 42091,
+        "units": 478262,
+        "is_partial": false
+      },
+      {
+        "month": "2010-10",
+        "rows": 59098,
+        "units": 601729,
+        "is_partial": false
+      },
+      {
+        "month": "2010-11",
+        "rows": 78015,
+        "units": 673856,
+        "is_partial": false
+      },
+      {
+        "month": "2010-12",
+        "rows": 65004,
+        "units": 508876,
+        "is_partial": false
+      },
+      {
+        "month": "2011-01",
+        "rows": 35147,
+        "units": 308966,
+        "is_partial": false
+      },
+      {
+        "month": "2011-02",
+        "rows": 27707,
+        "units": 277989,
+        "is_partial": false
+      },
+      {
+        "month": "2011-03",
+        "rows": 36748,
+        "units": 351872,
+        "is_partial": false
+      },
+      {
+        "month": "2011-04",
+        "rows": 29916,
+        "units": 289098,
+        "is_partial": false
+      },
+      {
+        "month": "2011-05",
+        "rows": 37030,
+        "units": 380391,
+        "is_partial": false
+      },
+      {
+        "month": "2011-06",
+        "rows": 36874,
+        "units": 341623,
+        "is_partial": false
+      },
+      {
+        "month": "2011-07",
+        "rows": 39518,
+        "units": 391116,
+        "is_partial": false
+      },
+      {
+        "month": "2011-08",
+        "rows": 35284,
+        "units": 406199,
+        "is_partial": false
+      },
+      {
+        "month": "2011-09",
+        "rows": 50226,
+        "units": 549817,
+        "is_partial": false
+      },
+      {
+        "month": "2011-10",
+        "rows": 60742,
+        "units": 570532,
+        "is_partial": false
+      },
+      {
+        "month": "2011-11",
+        "rows": 84711,
+        "units": 740286,
+        "is_partial": false
+      },
+      {
+        "month": "2011-12",
+        "rows": 25526,
+        "units": 226334,
+        "is_partial": true
+      }
+    ],
+    "source_sheets": {
+      "sheets": [
+        {
+          "source_sheet": "Year 2009-2010",
+          "rows": 525461,
+          "first_month": "2009-12",
+          "last_month": "2010-12"
+        },
+        {
+          "source_sheet": "Year 2010-2011",
+          "rows": 541910,
+          "first_month": "2010-12",
+          "last_month": "2011-12"
+        }
+      ],
+      "overlap": {
+        "months": [
+          "2010-12"
+        ],
+        "rows_per_sheet": [
+          {
+            "month": "2010-12",
+            "Year 2009-2010": 22523,
+            "Year 2010-2011": 42481
+          }
+        ],
+        "invoices_in_more_than_one_sheet": 1088
+      }
+    },
+    "weekday_distribution": [
+      {
+        "weekday": 0,
+        "weekday_name": "Monday",
+        "rows": 189084,
+        "units": 1936004
+      },
+      {
+        "weekday": 1,
+        "weekday_name": "Tuesday",
+        "rows": 196626,
+        "units": 1859062
+      },
+      {
+        "weekday": 2,
+        "weekday_name": "Wednesday",
+        "rows": 185051,
+        "units": 1946078
+      },
+      {
+        "weekday": 3,
+        "weekday_name": "Thursday",
+        "rows": 203149,
+        "units": 2307505
+      },
+      {
+        "weekday": 4,
+        "weekday_name": "Friday",
+        "rows": 153803,
+        "units": 1511812
+      },
+      {
+        "weekday": 5,
+        "weekday_name": "Saturday",
+        "rows": 402,
+        "units": 5033
+      },
+      {
+        "weekday": 6,
+        "weekday_name": "Sunday",
+        "rows": 139256,
+        "units": 1042998
+      }
+    ],
+    "largest_line": {
+      "quantity": 80995,
+      "invoice": "581483",
+      "stock_code": "23843",
+      "description": "PAPER CRAFT , LITTLE BIRDIE",
+      "month": "2011-12"
+    },
+    "lowercase_stock_code_variants": {
+      "rows": 3471,
+      "codes": 183
+    },
+    "nonpositive_quantity_without_cancellation": {
+      "rows": 3457,
+      "share": 0.0032387988806141443,
+      "threshold": 0.0
+    },
+    "nonpositive_price": {
+      "rows": 6207,
+      "share": 0.005815222635803296,
+      "threshold": 0.0
+    }
+  },
+  "missing_values": {
+    "per_column": {
+      "Invoice": {
+        "missing": 0,
+        "share": 0.0
+      },
+      "StockCode": {
+        "missing": 0,
+        "share": 0.0
+      },
+      "Description": {
+        "missing": 4382,
+        "share": 0.0041054141437232225
+      },
+      "Quantity": {
+        "missing": 0,
+        "share": 0.0
+      },
+      "InvoiceDate": {
+        "missing": 0,
+        "share": 0.0
+      },
+      "Price": {
+        "missing": 0,
+        "share": 0.0
+      },
+      "Customer ID": {
+        "missing": 243007,
+        "share": 0.22766872999172733
+      },
+      "Country": {
+        "missing": 0,
+        "share": 0.0
+      },
+      "source_sheet": {
+        "missing": 0,
+        "share": 0.0
+      }
+    },
+    "customer_id": {
+      "rows": 243007,
+      "row_share": 0.22766872999172733,
+      "revenue": 2638958.18,
+      "revenue_share": 0.13682396932087193
+    }
+  },
+  "cancellations_adjustments": {
+    "cancellation_prefixes": [
+      "C"
+    ],
+    "adjustment_prefixes": [
+      "A"
+    ],
+    "cancellations": {
+      "invoices": 8292,
+      "invoice_share": 0.1546207205191318,
+      "rows": 19494,
+      "row_share": 0.018263565339511754,
+      "units_abs": 490994
+    },
+    "adjustments": {
+      "invoices": 6,
+      "rows": 6,
+      "lines": [
+        {
+          "invoice": "A506401",
+          "stock_code": "B",
+          "description": "Adjust bad debt",
+          "quantity": 1,
+          "price": -53594.36,
+          "price_sign": -1,
+          "month": "2010-04"
+        },
+        {
+          "invoice": "A516228",
+          "stock_code": "B",
+          "description": "Adjust bad debt",
+          "quantity": 1,
+          "price": -44031.79,
+          "price_sign": -1,
+          "month": "2010-07"
+        },
+        {
+          "invoice": "A528059",
+          "stock_code": "B",
+          "description": "Adjust bad debt",
+          "quantity": 1,
+          "price": -38925.87,
+          "price_sign": -1,
+          "month": "2010-10"
+        },
+        {
+          "invoice": "A563185",
+          "stock_code": "B",
+          "description": "Adjust bad debt",
+          "quantity": 1,
+          "price": 11062.06,
+          "price_sign": 1,
+          "month": "2011-08"
+        },
+        {
+          "invoice": "A563186",
+          "stock_code": "B",
+          "description": "Adjust bad debt",
+          "quantity": 1,
+          "price": -11062.06,
+          "price_sign": -1,
+          "month": "2011-08"
+        },
+        {
+          "invoice": "A563187",
+          "stock_code": "B",
+          "description": "Adjust bad debt",
+          "quantity": 1,
+          "price": -11062.06,
+          "price_sign": -1,
+          "month": "2011-08"
+        }
+      ]
+    },
+    "note": "Gross demand (§9): cancellations and adjustments are removed from the sales table but never subtracted from demand."
+  },
+  "duplicates": {
+    "subset": [
+      "Invoice",
+      "StockCode",
+      "Description",
+      "Quantity",
+      "InvoiceDate",
+      "Price",
+      "Customer ID",
+      "Country"
+    ],
+    "rows": 1067371,
+    "duplicate_rows": 34335,
+    "within_source_duplicate_rows": 12133,
+    "cross_source_duplicate_rows": 22202,
+    "duplicate_row_share": 0.032167821685243465,
+    "duplicate_units": 198713,
+    "duplicate_units_share": 0.018731503026066288,
+    "row_share_threshold": 0.015,
+    "units_share_threshold": 0.01,
+    "warning": true,
+    "top_duplicated_lines": [
+      {
+        "Invoice": "555524",
+        "StockCode": "22698",
+        "Description": "PINK REGENCY TEACUP AND SAUCER",
+        "Quantity": 1,
+        "InvoiceDate": "2011-06-05T11:37:00",
+        "Price": 2.95,
+        "Customer ID": 16923.0,
+        "Country": "United Kingdom",
+        "occurrences": 20
+      },
+      {
+        "Invoice": "555524",
+        "StockCode": "22697",
+        "Description": "GREEN REGENCY TEACUP AND SAUCER",
+        "Quantity": 1,
+        "InvoiceDate": "2011-06-05T11:37:00",
+        "Price": 2.95,
+        "Customer ID": 16923.0,
+        "Country": "United Kingdom",
+        "occurrences": 12
+      },
+      {
+        "Invoice": "537224",
+        "StockCode": "70007",
+        "Description": "HI TEC ALPINE HAND WARMER",
+        "Quantity": 1,
+        "InvoiceDate": "2010-12-05T16:24:00",
+        "Price": 1.65,
+        "Customer ID": 13174.0,
+        "Country": "United Kingdom",
+        "occurrences": 10
+      },
+      {
+        "Invoice": "572861",
+        "StockCode": "22775",
+        "Description": "PURPLE DRAWERKNOB ACRYLIC EDWARDIAN",
+        "Quantity": 12,
+        "InvoiceDate": "2011-10-26T12:46:00",
+        "Price": 1.25,
+        "Customer ID": 14102.0,
+        "Country": "United Kingdom",
+        "occurrences": 8
+      },
+      {
+        "Invoice": "578289",
+        "StockCode": "23395",
+        "Description": "BELLE JARDINIERE CUSHION COVER",
+        "Quantity": 1,
+        "InvoiceDate": "2011-11-23T14:07:00",
+        "Price": 3.75,
+        "Customer ID": 17841.0,
+        "Country": "United Kingdom",
+        "occurrences": 6
+      },
+      {
+        "Invoice": "572344",
+        "StockCode": "M",
+        "Description": "Manual",
+        "Quantity": 48,
+        "InvoiceDate": "2011-10-24T10:43:00",
+        "Price": 1.5,
+        "Customer ID": 14607.0,
+        "Country": "United Kingdom",
+        "occurrences": 6
+      },
+      {
+        "Invoice": "541266",
+        "StockCode": "21755",
+        "Description": "LOVE BUILDING BLOCK WORD",
+        "Quantity": 1,
+        "InvoiceDate": "2011-01-16T16:25:00",
+        "Price": 5.95,
+        "Customer ID": 15673.0,
+        "Country": "United Kingdom",
+        "occurrences": 6
+      },
+      {
+        "Invoice": "541266",
+        "StockCode": "21754",
+        "Description": "HOME BUILDING BLOCK WORD",
+        "Quantity": 1,
+        "InvoiceDate": "2011-01-16T16:25:00",
+        "Price": 5.95,
+        "Customer ID": 15673.0,
+        "Country": "United Kingdom",
+        "occurrences": 6
+      },
+      {
+        "Invoice": "540524",
+        "StockCode": "21756",
+        "Description": "BATH BUILDING BLOCK WORD",
+        "Quantity": 1,
+        "InvoiceDate": "2011-01-09T12:53:00",
+        "Price": 5.95,
+        "Customer ID": 16735.0,
+        "Country": "United Kingdom",
+        "occurrences": 6
+      },
+      {
+        "Invoice": "538514",
+        "StockCode": "21756",
+        "Description": "BATH BUILDING BLOCK WORD",
+        "Quantity": 1,
+        "InvoiceDate": "2010-12-12T14:27:00",
+        "Price": 5.95,
+        "Customer ID": 15044.0,
+        "Country": "United Kingdom",
+        "occurrences": 6
+      }
+    ]
+  },
+  "nonproduct_codes": {
+    "pattern": "^\\d{5}[A-Z]{0,2}$|^DCGS",
+    "codes": 27,
+    "rows": 5935,
+    "units": 10641,
+    "revenue": -96396.29200000004,
+    "on_exclusion_list": 27,
+    "review_needed": 0,
+    "table": [
+      {
+        "stock_code": "POST",
+        "rows": 2122,
+        "units": 10108,
+        "revenue": 112341.0,
+        "sample_description": "POSTAGE",
+        "in_exclusion_list": true
+      },
+      {
+        "stock_code": "DOT",
+        "rows": 1446,
+        "units": 2938,
+        "revenue": 322647.47,
+        "sample_description": "DOTCOM POSTAGE",
+        "in_exclusion_list": true
+      },
+      {
+        "stock_code": "M",
+        "rows": 1426,
+        "units": 4612,
+        "revenue": -82781.27,
+        "sample_description": "Manual",
+        "in_exclusion_list": true
+      },
+      {
+        "stock_code": "C2",
+        "rows": 282,
+        "units": 716,
+        "revenue": 13386.0,
+        "sample_description": "CARRIAGE",
+        "in_exclusion_list": true
+      },
+      {
+        "stock_code": "D",
+        "rows": 177,
+        "units": -2872,
+        "revenue": -13484.539999999999,
+        "sample_description": "Discount",
+        "in_exclusion_list": true
+      },
+      {
+        "stock_code": "S",
+        "rows": 104,
+        "units": -98,
+        "revenue": -6065.8,
+        "sample_description": "SAMPLES",
+        "in_exclusion_list": true
+      },
+      {
+        "stock_code": "BANK CHARGES",
+        "rows": 102,
+        "units": -42,
+        "revenue": -35562.629,
+        "sample_description": "Bank Charges",
+        "in_exclusion_list": true
+      },
+      {
+        "stock_code": "ADJUST",
+        "rows": 67,
+        "units": 5,
+        "revenue": 6835.24,
+        "sample_description": "Adjustment by john on 26/01/2010 16",
+        "in_exclusion_list": true
+      },
+      {
+        "stock_code": "AMAZONFEE",
+        "rows": 43,
+        "units": -35,
+        "revenue": -260763.58,
+        "sample_description": "AMAZON FEE",
+        "in_exclusion_list": true
+      },
+      {
+        "stock_code": "GIFT_0001_20",
+        "rows": 29,
+        "units": 53,
+        "revenue": 471.06,
+        "sample_description": "Dotcomgiftshop Gift Voucher £20.00",
+        "in_exclusion_list": true
+      },
+      {
+        "stock_code": "GIFT_0001_30",
+        "rows": 29,
+        "units": 77,
+        "revenue": 610.09,
+        "sample_description": "Dotcomgiftshop Gift Voucher £30.00",
+        "in_exclusion_list": true
+      },
+      {
+        "stock_code": "PADS",
+        "rows": 19,
+        "units": 17,
+        "revenue": -36.583,
+        "sample_description": "PADS TO MATCH ALL CUSHIONS",
+        "in_exclusion_list": true
+      },
+      {
+        "stock_code": "CRUK",
+        "rows": 16,
+        "units": -16,
+        "revenue": -7933.43,
+        "sample_description": "CRUK Commission",
+        "in_exclusion_list": true
+      },
+      {
+        "stock_code": "GIFT_0001_10",
+        "rows": 16,
+        "units": 55,
+        "revenue": 126.21,
+        "sample_description": "Dotcomgiftshop Gift Voucher £10.00",
+        "in_exclusion_list": true
+      },
+      {
+        "stock_code": "TEST001",
+        "rows": 15,
+        "units": 55,
+        "revenue": 202.5,
+        "sample_description": "This is a test product.",
+        "in_exclusion_list": true
+      },
+      {
+        "stock_code": "GIFT_0001_50",
+        "rows": 8,
+        "units": 19,
+        "revenue": 253.59,
+        "sample_description": "Dotcomgiftshop Gift Voucher £50.00",
+        "in_exclusion_list": true
+      },
+      {
+        "stock_code": "GIFT_0001_40",
+        "rows": 7,
+        "units": 18,
+        "revenue": 166.09,
+        "sample_description": "Dotcomgiftshop Gift Voucher £40.00",
+        "in_exclusion_list": true
+      },
+      {
+        "stock_code": "B",
+        "rows": 6,
+        "units": 6,
+        "revenue": -147614.08000000002,
+        "sample_description": "Adjust bad debt",
+        "in_exclusion_list": true
+      },
+      {
+        "stock_code": "GIFT_0001_80",
+        "rows": 4,
+        "units": 12,
+        "revenue": 0.0,
+        "sample_description": "Dotcomgiftshop Gift Voucher £80.00",
+        "in_exclusion_list": true
+      },
+      {
+        "stock_code": "ADJUST2",
+        "rows": 3,
+        "units": 3,
+        "revenue": 731.0500000000001,
+        "sample_description": "Adjustment by Peter on Jun 25 2010 ",
+        "in_exclusion_list": true
+      },
+      {
+        "stock_code": "GIFT_0001_70",
+        "rows": 3,
+        "units": 13,
+        "revenue": 59.57,
+        "sample_description": "Dotcomgiftshop Gift Voucher £70.00",
+        "in_exclusion_list": true
+      },
+      {
+        "stock_code": "SP1002",
+        "rows": 3,
+        "units": -22,
+        "revenue": 14.75,
+        "sample_description": "KID'S CHALKBOARD/EASEL",
+        "in_exclusion_list": true
+      },
+      {
+        "stock_code": "GIFT_0001_60",
+        "rows": 2,
+        "units": 13,
+        "revenue": 0.0,
+        "sample_description": null,
+        "in_exclusion_list": true
+      },
+      {
+        "stock_code": "GIFT_0001_90",
+        "rows": 2,
+        "units": 12,
+        "revenue": 0.0,
+        "sample_description": null,
+        "in_exclusion_list": true
+      },
+      {
+        "stock_code": "TEST002",
+        "rows": 2,
+        "units": 2,
+        "revenue": 1.0,
+        "sample_description": "This is a test product.",
+        "in_exclusion_list": true
+      },
+      {
+        "stock_code": "C3",
+        "rows": 1,
+        "units": -4999,
+        "revenue": 0.0,
+        "sample_description": null,
+        "in_exclusion_list": true
+      },
+      {
+        "stock_code": "GIFT",
+        "rows": 1,
+        "units": -9,
+        "revenue": 0.0,
+        "sample_description": null,
+        "in_exclusion_list": true
+      }
+    ]
+  },
+  "abnormal_quantities": {
+    "threshold": 5000,
+    "lines": 30,
+    "max_quantity": 80995,
+    "units": 392466,
+    "top_lines": [
+      {
+        "invoice": "581483",
+        "stock_code": "23843",
+        "description": "PAPER CRAFT , LITTLE BIRDIE",
+        "quantity": 80995,
+        "price": 2.08,
+        "customer_identified": true,
+        "month": "2011-12"
+      },
+      {
+        "invoice": "541431",
+        "stock_code": "23166",
+        "description": "MEDIUM CERAMIC TOP STORAGE JAR",
+        "quantity": 74215,
+        "price": 1.04,
+        "customer_identified": true,
+        "month": "2011-01"
+      },
+      {
+        "invoice": "497946",
+        "stock_code": "37410",
+        "description": "BLACK AND WHITE PAISLEY FLOWER MUG",
+        "quantity": 19152,
+        "price": 0.1,
+        "customer_identified": true,
+        "month": "2010-02"
+      },
+      {
+        "invoice": "501534",
+        "stock_code": "21091",
+        "description": "SET/6 WOODLAND PAPER PLATES",
+        "quantity": 12960,
+        "price": 0.1,
+        "customer_identified": true,
+        "month": "2010-03"
+      },
+      {
+        "invoice": "501534",
+        "stock_code": "21099",
+        "description": "SET/6 STRAWBERRY PAPER CUPS",
+        "quantity": 12960,
+        "price": 0.1,
+        "customer_identified": true,
+        "month": "2010-03"
+      },
+      {
+        "invoice": "501534",
+        "stock_code": "21085",
+        "description": "SET/6 WOODLAND PAPER CUPS",
+        "quantity": 12744,
+        "price": 0.1,
+        "customer_identified": true,
+        "month": "2010-03"
+      },
+      {
+        "invoice": "501534",
+        "stock_code": "21092",
+        "description": "SET/6 STRAWBERRY PAPER PLATES",
+        "quantity": 12480,
+        "price": 0.1,
+        "customer_identified": true,
+        "month": "2010-03"
+      },
+      {
+        "invoice": "502269",
+        "stock_code": "21980",
+        "description": "PACK OF 12 RED RETROSPOT TISSUES",
+        "quantity": 10000,
+        "price": 0.25,
+        "customer_identified": true,
+        "month": "2010-03"
+      },
+      {
+        "invoice": "502269",
+        "stock_code": "21981",
+        "description": "PACK OF 12 WOODLAND TISSUES",
+        "quantity": 10000,
+        "price": 0.25,
+        "customer_identified": true,
+        "month": "2010-03"
+      },
+      {
+        "invoice": "502269",
+        "stock_code": "21982",
+        "description": "PACK OF 12 SUKI TISSUES",
+        "quantity": 10000,
+        "price": 0.25,
+        "customer_identified": true,
+        "month": "2010-03"
+      },
+      {
+        "invoice": "502269",
+        "stock_code": "21984",
+        "description": "PACK OF 12 PINK PAISLEY TISSUES",
+        "quantity": 10000,
+        "price": 0.25,
+        "customer_identified": true,
+        "month": "2010-03"
+      },
+      {
+        "invoice": "498152",
+        "stock_code": "85220",
+        "description": "SMALL FAIRY CAKE FRIDGE MAGNETS",
+        "quantity": 9456,
+        "price": 0.3,
+        "customer_identified": true,
+        "month": "2010-02"
+      },
+      {
+        "invoice": "530715",
+        "stock_code": "84347",
+        "description": "ROTATING SILVER ANGELS T-LIGHT HLDR",
+        "quantity": 9360,
+        "price": 1.69,
+        "customer_identified": true,
+        "month": "2010-11"
+      },
+      {
+        "invoice": "495194",
+        "stock_code": "20993",
+        "description": "JAZZ HEARTS MEMO PAD",
+        "quantity": 9312,
+        "price": 0.1,
+        "customer_identified": true,
+        "month": "2010-01"
+      },
+      {
+        "invoice": "518505",
+        "stock_code": "21088",
+        "description": "SET/6 FRUIT SALAD PAPER CUPS",
+        "quantity": 7128,
+        "price": 0.08,
+        "customer_identified": true,
+        "month": "2010-08"
+      },
+      {
+        "invoice": "521315",
+        "stock_code": "17003",
+        "description": "BROCADE RING PURSE",
+        "quantity": 7128,
+        "price": 0.19,
+        "customer_identified": true,
+        "month": "2010-09"
+      },
+      {
+        "invoice": "524174",
+        "stock_code": "21088",
+        "description": "SET/6 FRUIT SALAD PAPER CUPS",
+        "quantity": 7128,
+        "price": 0.08,
+        "customer_identified": true,
+        "month": "2010-09"
+      },
+      {
+        "invoice": "518505",
+        "stock_code": "21096",
+        "description": "SET/6 FRUIT SALAD  PAPER PLATES",
+        "quantity": 7008,
+        "price": 0.13,
+        "customer_identified": true,
+        "month": "2010-08"
+      },
+      {
+        "invoice": "524174",
+        "stock_code": "21096",
+        "description": "SET/6 FRUIT SALAD  PAPER PLATES",
+        "quantity": 7008,
+        "price": 0.13,
+        "customer_identified": true,
+        "month": "2010-09"
+      },
+      {
+        "invoice": "495194",
+        "stock_code": "20991",
+        "description": "JAZZ HEARTS MAGNETIC MEMO PAD",
+        "quantity": 6768,
+        "price": 0.1,
+        "customer_identified": true,
+        "month": "2010-01"
+      }
+    ],
+    "note": "Flagged, never removed (§10); motivates the robust σ of §26."
+  },
+  "partial_month": {
+    "months": [
+      "2011-12"
+    ],
+    "rows": 25526,
+    "row_share": 0.023914833736348468,
+    "units": 226334,
+    "last_full_month": "2011-11",
+    "note": "Never scored (§8, §16, §21); may be displayed as a hatched partial actual."
+  },
+  "waterfall": [
+    {
+      "step_no": 1,
+      "step": "dataset_intake",
+      "rule": "load_raw",
+      "rows_before": 1067371,
+      "rows_removed": 0,
+      "rows_after": 1067371,
+      "units_before": 10608492,
+      "units_removed": 0,
+      "units_after": 10608492,
+      "revenue_after": 19287250.57
+    },
+    {
+      "step_no": 2,
+      "step": "raw_schema_validation",
+      "rule": "required_columns",
+      "rows_before": 1067371,
+      "rows_removed": 0,
+      "rows_after": 1067371,
+      "units_before": 10608492,
+      "units_removed": 0,
+      "units_after": 10608492,
+      "revenue_after": 19287250.57
+    },
+    {
+      "step_no": 3,
+      "step": "normalise_keys",
+      "rule": "strip_upper_stockcode",
+      "rows_before": 1067371,
+      "rows_removed": 0,
+      "rows_after": 1067371,
+      "units_before": 10608492,
+      "units_removed": 0,
+      "units_after": 10608492,
+      "revenue_after": 19287250.57
+    },
+    {
+      "step_no": 4,
+      "step": "convert_dates",
+      "rule": "month_and_partial_flag",
+      "rows_before": 1067371,
+      "rows_removed": 0,
+      "rows_after": 1067371,
+      "units_before": 10608492,
+      "units_removed": 0,
+      "units_after": 10608492,
+      "revenue_after": 19287250.57
+    },
+    {
+      "step_no": 5,
+      "step": "remove_cancellations_adjustments",
+      "rule": "cancellation_prefixes,adjustment_prefixes",
+      "rows_before": 1067371,
+      "rows_removed": 19500,
+      "rows_after": 1047871,
+      "units_before": 10608492,
+      "units_removed": -490986,
+      "units_after": 11099478,
+      "revenue_after": 20961532.51
+    },
+    {
+      "step_no": 6,
+      "step": "remove_nonpositive_quantity",
+      "rule": "drop_quantity_at_or_below",
+      "rows_before": 1047871,
+      "rows_removed": 3457,
+      "rows_after": 1044414,
+      "units_before": 11099478,
+      "units_removed": -573085,
+      "units_after": 11672563,
+      "revenue_after": 20961532.51
+    },
+    {
+      "step_no": 7,
+      "step": "remove_nonpositive_price",
+      "rule": "drop_price_at_or_below",
+      "rows_before": 1044414,
+      "rows_removed": 2745,
+      "rows_after": 1041669,
+      "units_before": 11672563,
+      "units_removed": 252259,
+      "units_after": 11420304,
+      "revenue_after": 20961532.51
+    },
+    {
+      "step_no": 8,
+      "step": "remove_non_inventory_codes",
+      "rule": "non_inventory_file",
+      "rows_before": 1041669,
+      "rows_removed": 4667,
+      "rows_after": 1037002,
+      "units_before": 11420304,
+      "units_removed": 17655,
+      "units_after": 11402649,
+      "revenue_after": 20110166.25
+    },
+    {
+      "step_no": 9,
+      "step": "remove_exact_duplicates",
+      "rule": "duplicate_policy",
+      "rows_before": 1037002,
+      "rows_removed": 33664,
+      "rows_after": 1003338,
+      "units_before": 11402649,
+      "units_removed": 214610,
+      "units_after": 11188039,
+      "revenue_after": 19643846.87
+    },
+    {
+      "step_no": 10,
+      "step": "canonical_descriptions",
+      "rule": "most_frequent_nonempty",
+      "rows_before": 1003338,
+      "rows_removed": 0,
+      "rows_after": 1003338,
+      "units_before": 11188039,
+      "units_removed": 0,
+      "units_after": 11188039,
+      "revenue_after": 19643846.87
+    }
+  ],
+  "panel_preview": {
+    "rows": 100717,
+    "products": 4723,
+    "months": 25,
+    "first_month": "2009-12",
+    "last_month": "2011-12",
+    "zero_rows": 34853,
+    "zero_share": 0.34604882988969093,
+    "partial_rows": 4723,
+    "last_full_month": "2011-11"
+  },
+  "warnings": [
+    "source sheets overlap on 2010-12: 1088 invoice number(s) appear in more than one sheet and 22202 rows are cross-sheet exact duplicates — the shared period is double-counted before de-duplication",
+    "raw exact duplicates are 3.2168% of rows and 1.8732% of units, above the 1.5000% / 1.0000% thresholds (§11)"
+  ]
+}

@@ -1,0 +1,26 @@
+[
+  {
+    "year":"2009-12..2010-11",
+    "window":"Sep-Nov",
+    "units":1927135,
+    "units_share":0.3425,
+    "revenue":3393365.13,
+    "revenue_share":0.3611
+  },
+  {
+    "year":"2010-12..2011-11",
+    "window":"Sep-Nov",
+    "units":1935249,
+    "units_share":0.3687,
+    "revenue":3583750.61,
+    "revenue_share":0.372
+  },
+  {
+    "year":"pooled",
+    "window":"Sep-Nov",
+    "units":3862384,
+    "units_share":0.3551,
+    "revenue":6977115.74,
+    "revenue_share":0.3667
+  }
+]

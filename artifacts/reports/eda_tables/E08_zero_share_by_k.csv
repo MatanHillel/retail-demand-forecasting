@@ -1,0 +1,5 @@
+k,rows,products,zero_rows,zero_target_share,first_target_month,last_target_month,is_configured_k
+1,54862,4477,6226,0.1135,2010-03,2011-11,False
+3,65244,4688,12767,0.1957,2010-03,2011-11,False
+6,72182,4688,18722,0.2594,2010-03,2011-11,True
+12,79638,4688,25825,0.3243,2010-03,2011-11,False

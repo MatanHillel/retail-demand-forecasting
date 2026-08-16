@@ -1,0 +1,24 @@
+metric,unit,statistic,value
+unit_price,GBP per unit,count,1003338.0000
+unit_price,GBP per unit,mean,3.3401
+unit_price,GBP per unit,min,0.0300
+unit_price,GBP per unit,p01,0.2900
+unit_price,GBP per unit,p10,0.6500
+unit_price,GBP per unit,p25,1.2500
+unit_price,GBP per unit,p50,2.1000
+unit_price,GBP per unit,p75,4.1300
+unit_price,GBP per unit,p90,7.6200
+unit_price,GBP per unit,p99,16.9500
+unit_price,GBP per unit,max,1157.1500
+price_cv,ratio (std / mean),count,4518.0000
+price_cv,ratio (std / mean),mean,0.2127
+price_cv,ratio (std / mean),min,0.0000
+price_cv,ratio (std / mean),p01,0.0000
+price_cv,ratio (std / mean),p10,0.0113
+price_cv,ratio (std / mean),p25,0.0585
+price_cv,ratio (std / mean),p50,0.1502
+price_cv,ratio (std / mean),p75,0.3045
+price_cv,ratio (std / mean),p90,0.4685
+price_cv,ratio (std / mean),p99,1.0262
+price_cv,ratio (std / mean),max,2.7375
+price_cv,ratio (std / mean),products_with_too_few_months,205.0000
