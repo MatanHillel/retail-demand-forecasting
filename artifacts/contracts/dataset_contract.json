@@ -1,0 +1,258 @@
+{
+  "dataset": "clean_data",
+  "version": "1.0",
+  "source": "UCI Online Retail II (CC BY 4.0); Kaggle mirror mashlyn/online-retail-ii-uci",
+  "generated_at": "2026-08-16T10:56:39.656256+00:00",
+  "run_id": "20260816T105639Z-f80bba",
+  "data_sha256": null,
+  "grain": "one row per stock_code x month, from first observed sale to 2011-11 (2011-12 flagged partial)",
+  "primary_key": [
+    "stock_code",
+    "month"
+  ],
+  "date_range": {
+    "first_month": "2009-12",
+    "last_full_month": "2011-11",
+    "partial_months": [
+      "2011-12"
+    ]
+  },
+  "columns": {
+    "month": {
+      "type": "string",
+      "format": "YYYY-MM",
+      "nullable": false
+    },
+    "stock_code": {
+      "type": "string",
+      "pattern": "^\\d{5}[A-Z]{0,2}$|^DCGS",
+      "nullable": false
+    },
+    "description": {
+      "type": "string",
+      "nullable": true
+    },
+    "units_sold": {
+      "type": "int",
+      "min": 0,
+      "nullable": false
+    },
+    "gross_revenue": {
+      "type": "float",
+      "min": 0,
+      "nullable": false
+    },
+    "avg_unit_price": {
+      "type": "float",
+      "min": 0,
+      "nullable": false
+    },
+    "invoice_count": {
+      "type": "int",
+      "min": 0,
+      "nullable": false
+    },
+    "sale_line_count": {
+      "type": "int",
+      "min": 0,
+      "nullable": false
+    },
+    "customer_count": {
+      "type": "int",
+      "min": 0,
+      "nullable": false
+    },
+    "max_line_qty": {
+      "type": "int",
+      "min": 0,
+      "nullable": false
+    },
+    "returned_units": {
+      "type": "int",
+      "min": 0,
+      "nullable": false,
+      "note": "EDA only - never a feature"
+    },
+    "is_partial_month": {
+      "type": "bool",
+      "nullable": false
+    }
+  },
+  "cleaning_assumptions": [
+    "cancellations (C/A invoices) removed",
+    "Quantity <= 0 removed",
+    "Price <= 0 removed",
+    "non-inventory stock codes removed (see config/non_inventory_stockcodes.csv)",
+    "exact duplicate rows removed",
+    "rows without Customer ID kept",
+    "gross demand (returns not subtracted)"
+  ],
+  "exclusion_list": [
+    {
+      "stock_code": "POST",
+      "reason": "postage",
+      "status": "initial"
+    },
+    {
+      "stock_code": "DOT",
+      "reason": "dotcom postage",
+      "status": "initial"
+    },
+    {
+      "stock_code": "C2",
+      "reason": "carriage",
+      "status": "initial"
+    },
+    {
+      "stock_code": "C3",
+      "reason": "carriage / adjustment",
+      "status": "initial"
+    },
+    {
+      "stock_code": "M",
+      "reason": "manual",
+      "status": "initial"
+    },
+    {
+      "stock_code": "m",
+      "reason": "manual (lower-case variant; merges with M after key normalisation)",
+      "status": "initial"
+    },
+    {
+      "stock_code": "D",
+      "reason": "discount",
+      "status": "initial"
+    },
+    {
+      "stock_code": "S",
+      "reason": "samples",
+      "status": "initial"
+    },
+    {
+      "stock_code": "BANK CHARGES",
+      "reason": "bank charges",
+      "status": "initial"
+    },
+    {
+      "stock_code": "ADJUST",
+      "reason": "adjustment",
+      "status": "initial"
+    },
+    {
+      "stock_code": "ADJUST2",
+      "reason": "adjustment",
+      "status": "initial"
+    },
+    {
+      "stock_code": "AMAZONFEE",
+      "reason": "marketplace fee",
+      "status": "initial"
+    },
+    {
+      "stock_code": "CRUK",
+      "reason": "commission",
+      "status": "initial"
+    },
+    {
+      "stock_code": "TEST001",
+      "reason": "test row",
+      "status": "initial"
+    },
+    {
+      "stock_code": "TEST002",
+      "reason": "test row",
+      "status": "initial"
+    },
+    {
+      "stock_code": "B",
+      "reason": "bad debt",
+      "status": "initial"
+    },
+    {
+      "stock_code": "GIFT",
+      "reason": "gift voucher",
+      "status": "initial"
+    },
+    {
+      "stock_code": "gift_0001_10",
+      "reason": "gift voucher",
+      "status": "initial"
+    },
+    {
+      "stock_code": "gift_0001_20",
+      "reason": "gift voucher",
+      "status": "initial"
+    },
+    {
+      "stock_code": "gift_0001_30",
+      "reason": "gift voucher",
+      "status": "initial"
+    },
+    {
+      "stock_code": "gift_0001_40",
+      "reason": "gift voucher",
+      "status": "initial"
+    },
+    {
+      "stock_code": "gift_0001_50",
+      "reason": "gift voucher",
+      "status": "initial"
+    },
+    {
+      "stock_code": "gift_0001_60",
+      "reason": "gift voucher",
+      "status": "initial"
+    },
+    {
+      "stock_code": "gift_0001_70",
+      "reason": "gift voucher",
+      "status": "initial"
+    },
+    {
+      "stock_code": "gift_0001_80",
+      "reason": "gift voucher",
+      "status": "initial"
+    },
+    {
+      "stock_code": "gift_0001_90",
+      "reason": "gift voucher",
+      "status": "initial"
+    },
+    {
+      "stock_code": "PADS",
+      "reason": "packaging (price 0.001 — review)",
+      "status": "initial"
+    },
+    {
+      "stock_code": "SP1002",
+      "reason": "real product with non-standard code; only 3 return rows — documented not modelled",
+      "status": "initial"
+    }
+  ],
+  "active_rule": {
+    "k": 6,
+    "definition": ">= 1 positive sale in the 6 months before the target month"
+  },
+  "partial_month_rule": "2011-12 is incomplete: it may be shown as a partial actual (hatched and labelled) and is the target of the latest operational forecast, but it never enters a metric (2011-12 is never scored)",
+  "leakage_rules": [
+    "features use months <= forecast_origin only",
+    "target_month = forecast_origin + 1",
+    "ABC / sigma computed on training window only",
+    "the partial month is never a target"
+  ],
+  "modeling_split": {
+    "train_targets": "2010-03..2011-05",
+    "test_targets": "2011-06..2011-11"
+  },
+  "row_counts": {
+    "rows": 100717,
+    "products": 4723,
+    "zero_rows": 34853,
+    "partial_rows": 4723
+  },
+  "feature_conventions": [
+    "lags are 0 for months before a product's first observed sale",
+    "rolling statistics use only observed months (truncated windows) before the dataset start",
+    "product_age_months is a lower bound (left-censoring)"
+  ]
+}

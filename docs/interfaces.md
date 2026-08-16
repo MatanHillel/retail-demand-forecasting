@@ -287,3 +287,54 @@ Rules these modules add to §6:
   point noise. Zero-revenue products are always C.
 * **`apply_style()` is global state.** `save_figure` passes `dpi` explicitly, so the ≥ 150 dpi
   guarantee holds even when a caller forgot to call it.
+
+---
+
+## 8. `pipeline.contract` — the dataset contract (US-08)
+
+```python
+CONTRACT_STEP = "contract_validation"       # the step name on every Violation and on the report
+CONTRACT_MISMATCH_TEMPLATE                  # "clean_data does not match dataset_contract.json ({count} violations)"
+CONTRACT_VERSION, DATASET_NAME, SOURCE, MONTH_PATTERN, RETURNED_UNITS_NOTE
+CLEANING_ASSUMPTIONS, LEAKAGE_RULES, FEATURE_CONVENTIONS    # the fixed Appendix A prose
+
+write_contract(panel_df, cleaning_cfg, model_cfg, exclusion_df, ctx) -> dict
+validate_contract(panel_df, contract: dict) -> ValidationResult      # pure: no ctx, no disk
+validate_contract_files(clean_data_path, contract_path) -> ValidationResult   # CLI/CI only
+contract_failure_message(result) -> str     # the §39 wording, WITHOUT the "FLOW STOPPED: " prefix
+read_panel(path) -> pd.DataFrame            # stock_code and month stay strings
+run(argv=None) -> int                       # python -m pipeline.contract write|validate
+```
+
+`dataset_contract.json` keys, in written order: `dataset, version, source, generated_at, run_id,
+data_sha256, grain, primary_key, date_range, columns, cleaning_assumptions, exclusion_list,
+active_rule, partial_month_rule, leakage_rules, modeling_split, row_counts, feature_conventions`.
+`columns` holds exactly the twelve `PANEL_COLUMNS` in panel order, each with `type` and `nullable`,
+plus `min` on the numeric ones, `format` on `month`, `pattern` on `stock_code` and `note` on
+`returned_units`.
+
+Rules for callers:
+
+* **Flow step 3 validates the dict `write_contract` returned**, never `paths.DATASET_CONTRACT`.
+  Step 2 stages the write, so until `promote()` the final path still holds the *previous* run's
+  contract (§6 rule 7). `validate_contract_files` is for the CLI and CI, where both files are final.
+* **The failure wording comes from `contract_failure_message(result)`, not `summary()`.**
+  `summary()` returns the single violation's message, or `"<step> failed with <n> violations"` —
+  neither is the string §39 fixes. Raise
+  `FlowValidationError(result, contract_failure_message(result))`; the exception adds
+  `FLOW STOPPED: ` itself, so never include that prefix.
+* **The caller writes the report**: `write_validation_report(result, run_id=ctx.run_id)`, bypassing
+  `ctx.out()` (§6 rules 2 and 4).
+* **Violation rule names** (stable; the app groups on them): `columns`, `unexpected_columns`,
+  `dtype`, `nullable`, `primary_key`, `month_format`, `month_range`, `first_row_is_a_sale`,
+  `contiguous_months`, `panel_end`, `non_negative`, `stock_code_pattern`, `is_partial_month`.
+  A missing column **short-circuits** — one violation, not a dozen consequences of one defect.
+* **`row_counts` differences are not violations** (§3): a fresh contract is written each run. They
+  are returned in `ValidationResult.extra["row_counts"]` as `{"contract": …, "panel": …}` for the
+  caller to re-emit through `ctx.warn`.
+* **`panel_end` compares against the observed last month**, not the configured one, so a panel that
+  stops a month early is one `month_range` violation rather than one violation per product.
+* **`data_sha256` is `null` unless `ctx.record_data(...)` ran** (US-03's `load_raw` does it). A
+  standalone `python -m pipeline.contract write` records `null` rather than fabricating a hash.
+* **Read `clean_data.csv` with `read_panel`.** Plain `pd.read_csv` infers `stock_code` as an
+  integer — `01234` loses its leading zero and then fails a pattern it actually matches.
