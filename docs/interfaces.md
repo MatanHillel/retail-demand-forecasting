@@ -1,7 +1,8 @@
 # Cross-cutting interfaces — the single source of truth
 
 **Status:** generated from the merged code of US-00, US-01 and US-02, extended with the US-05 panel
-surface (branch `matan/pr1-us03-05-data-pipeline`).
+surface (branch `matan/pr1-us03-05-data-pipeline`) and the US-06 EDA foundations (branch
+`matan/pr2-us06-08`).
 **Rule:** every issue that uses these modules links to this file instead of restating the API. If an
 issue's prompt and this file disagree, **this file wins** — it is derived from code that exists, the
 issue text was written before the code did.
@@ -225,3 +226,115 @@ never call it on a frame with missing months. EDA (US-10) sweeps several `k`; fe
     files, the parquet read-cache and committed test fixtures are written to their real locations
     directly — staging them would copy git-ignored bulk into `artifacts/_staging/` and promote it
     into the repo on every successful run.
+
+---
+
+## 7. `pipeline.eda.style`, `pipeline.eda.io` & `pipeline.abc` — EDA foundations (US-06)
+
+Numbered after the usage rules on purpose: §6 rule numbers are cited from several open issues and
+must not shift.
+
+```python
+# pipeline.eda.style — one look for every figure (§35A.2). Backend is forced to Agg on import.
+PALETTE: list[str]                      # Okabe–Ito, colour-blind safe, ordered for series
+ABC_COLORS: dict[str, str]              # {"A","B","C"} -> hex; fixed forever
+FIGURE_DPI: int                         # 150 — the §35A.2 floor
+FIGURE_SIZE, BASE_FONT_SIZE, DEFAULT_FOOTNOTE, LOG_SCALE_SUFFIX, PARTIAL_HATCH, PARTIAL_LABEL
+apply_style() -> None                   # mutates global rcParams + Seaborn theme
+finalize(fig, title, xlabel, ylabel, footnote=DEFAULT_FOOTNOTE, log_y=False) -> Figure
+hatch_partial(ax, x_positions) -> list  # hatches + labels "partial" months (§8)
+
+# pipeline.eda.io — the single choke point for EDA artifact reads and writes
+NAME_PATTERN                            # ^E\d{2}_[A-Za-z0-9_]+$ — enforced, not advisory
+figure_path(name) -> Path               # repo-relative
+table_path(name, fmt="csv") -> Path     # repo-relative
+save_figure(fig, name, ctx) -> Path     # >=150 dpi PNG, closes the figure
+save_table(df, name, ctx, fmt="csv") -> Path        # fmt in ("csv", "json")
+load_table(name, ctx, fmt="csv") -> pd.DataFrame    # staged copy first, final second
+figure_to_base64(figure: str | Path, ctx=None) -> str   # name needs ctx; Path does not
+
+# pipeline.abc — one ABC definition for EDA, evaluation, σ fallback and inventory KPIs
+ABC_COLUMNS: list[str]                  # stock_code, revenue, revenue_share, cum_share, abc_class
+ABC_CLASSES: tuple[str, str, str]
+compute_abc(panel, through_month, a_cum_share=None, b_cum_share=None) -> pd.DataFrame  # pure
+```
+
+Rules these modules add to §6:
+
+* **Artifact names are validated, not merely conventional.** `save_figure`/`save_table`/
+  `load_table` raise `ValueError` on anything that is not `E<nn>_<topic>`. `E01_cleaning_waterfall`
+  (written by `pipeline.cleaning`) already follows it.
+* **Both savers take `ctx` and write through `ctx.out()`** with the **repo-relative** form of
+  `paths.FIGURES_DIR` / `paths.EDA_TABLES_DIR` (§6 rule 12 — the absolute constant would escape a
+  test `base_dir`). This is where the §39 guarantee is enforced for all seventeen figures and
+  every EDA table, so no analysis issue may write a figure by hand.
+* **Readers resolve staged-first and never call `ctx.out()`.** `out()` registers a path for
+  promotion, so using it to *locate* a file makes `promote()` warn "staged artifact was never
+  written". `load_table` and `figure_to_base64` look in `ctx.staging_dir` first, then
+  `ctx.base_dir`, and raise `FileNotFoundError` naming both.
+* **`save_table` preserves the caller's row and column order** and writes `index=False`,
+  `float_format="%.4f"`, `lineterminator="\n"` — deterministic bytes (§40). It does not sort:
+  a top-20 ranking and the cleaning waterfall are ordered on purpose.
+* **`compute_abc` is pure** — no `ctx`, no disk. Thresholds default to
+  `load_inventory_policy().abc.{a_cum_share,b_cum_share}`; nothing is hard-coded (§40). Persisting
+  the table goes through `save_table(..., ctx)`.
+* **`through_month` is the leakage boundary.** Revenue is summed over months `≤ through_month`
+  only. Modelling, evaluation and σ fallback pass the **last training target month** (§18.2, §23,
+  §27); descriptive EDA (E6) may pass the panel end but must label the figure full-period.
+  Products first seen after the cut-off are absent from the result — at that origin they had not
+  been observed. Class A while `cum_share ≤ a_cum_share`, B while `≤ b_cum_share`, else C, with a
+  `1e-9` tolerance so a product landing exactly on a boundary does not fall a class on floating
+  point noise. Zero-revenue products are always C.
+* **`apply_style()` is global state.** `save_figure` passes `dpi` explicitly, so the ≥ 150 dpi
+  guarantee holds even when a caller forgot to call it.
+
+---
+
+## 8. `pipeline.contract` — the dataset contract (US-08)
+
+```python
+CONTRACT_STEP = "contract_validation"       # the step name on every Violation and on the report
+CONTRACT_MISMATCH_TEMPLATE                  # "clean_data does not match dataset_contract.json ({count} violations)"
+CONTRACT_VERSION, DATASET_NAME, SOURCE, MONTH_PATTERN, RETURNED_UNITS_NOTE
+CLEANING_ASSUMPTIONS, LEAKAGE_RULES, FEATURE_CONVENTIONS    # the fixed Appendix A prose
+
+write_contract(panel_df, cleaning_cfg, model_cfg, exclusion_df, ctx) -> dict
+validate_contract(panel_df, contract: dict) -> ValidationResult      # pure: no ctx, no disk
+validate_contract_files(clean_data_path, contract_path) -> ValidationResult   # CLI/CI only
+contract_failure_message(result) -> str     # the §39 wording, WITHOUT the "FLOW STOPPED: " prefix
+read_panel(path) -> pd.DataFrame            # stock_code and month stay strings
+run(argv=None) -> int                       # python -m pipeline.contract write|validate
+```
+
+`dataset_contract.json` keys, in written order: `dataset, version, source, generated_at, run_id,
+data_sha256, grain, primary_key, date_range, columns, cleaning_assumptions, exclusion_list,
+active_rule, partial_month_rule, leakage_rules, modeling_split, row_counts, feature_conventions`.
+`columns` holds exactly the twelve `PANEL_COLUMNS` in panel order, each with `type` and `nullable`,
+plus `min` on the numeric ones, `format` on `month`, `pattern` on `stock_code` and `note` on
+`returned_units`.
+
+Rules for callers:
+
+* **Flow step 3 validates the dict `write_contract` returned**, never `paths.DATASET_CONTRACT`.
+  Step 2 stages the write, so until `promote()` the final path still holds the *previous* run's
+  contract (§6 rule 7). `validate_contract_files` is for the CLI and CI, where both files are final.
+* **The failure wording comes from `contract_failure_message(result)`, not `summary()`.**
+  `summary()` returns the single violation's message, or `"<step> failed with <n> violations"` —
+  neither is the string §39 fixes. Raise
+  `FlowValidationError(result, contract_failure_message(result))`; the exception adds
+  `FLOW STOPPED: ` itself, so never include that prefix.
+* **The caller writes the report**: `write_validation_report(result, run_id=ctx.run_id)`, bypassing
+  `ctx.out()` (§6 rules 2 and 4).
+* **Violation rule names** (stable; the app groups on them): `columns`, `unexpected_columns`,
+  `dtype`, `nullable`, `primary_key`, `month_format`, `month_range`, `first_row_is_a_sale`,
+  `contiguous_months`, `panel_end`, `non_negative`, `stock_code_pattern`, `is_partial_month`.
+  A missing column **short-circuits** — one violation, not a dozen consequences of one defect.
+* **`row_counts` differences are not violations** (§3): a fresh contract is written each run. They
+  are returned in `ValidationResult.extra["row_counts"]` as `{"contract": …, "panel": …}` for the
+  caller to re-emit through `ctx.warn`.
+* **`panel_end` compares against the observed last month**, not the configured one, so a panel that
+  stops a month early is one `month_range` violation rather than one violation per product.
+* **`data_sha256` is `null` unless `ctx.record_data(...)` ran** (US-03's `load_raw` does it). A
+  standalone `python -m pipeline.contract write` records `null` rather than fabricating a hash.
+* **Read `clean_data.csv` with `read_panel`.** Plain `pd.read_csv` infers `stock_code` as an
+  integer — `01234` loses its leading zero and then fails a pattern it actually matches.
