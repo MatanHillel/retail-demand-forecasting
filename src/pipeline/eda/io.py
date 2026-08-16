@@ -138,7 +138,10 @@ def save_table(df: pd.DataFrame, name: str, ctx: RunContext, fmt: str = "csv") -
             date_format="iso",
             force_ascii=False,
         )
-        destination.write_text(f"{payload}\n", encoding="utf-8")
+        # ``newline="\n"`` for the same reason ``to_csv`` above pins ``lineterminator``: without
+        # it Windows text mode writes CRLF and the JSON tables stop being byte-identical to the
+        # ones CI produces.
+        destination.write_text(f"{payload}\n", encoding="utf-8", newline="\n")
     ctx.logger.info(f"table written: {relative.as_posix()} ({len(df)} rows)")
     return destination
 
