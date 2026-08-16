@@ -1,0 +1,443 @@
+{
+  "artifacts": {
+    "data_quality_findings": "artifacts/reports/data_quality_findings.json",
+    "eda_report": "artifacts/reports/eda_report.html",
+    "eda_tables_index": "artifacts/reports/eda_tables/index.json",
+    "insights": "artifacts/reports/insights.md"
+  },
+  "champion": null,
+  "config_snapshot": {
+    "cleaning_config": {
+      "raw": {
+        "first_month": "2009-12",
+        "last_full_month": "2011-11",
+        "partial_months": [
+          "2011-12"
+        ],
+        "required_columns": [
+          "Invoice",
+          "StockCode",
+          "Description",
+          "Quantity",
+          "InvoiceDate",
+          "Price",
+          "Customer ID",
+          "Country"
+        ]
+      },
+      "rules": {
+        "adjustment_prefixes": [
+          "A"
+        ],
+        "cancellation_prefixes": [
+          "C"
+        ],
+        "drop_price_at_or_below": 0.0,
+        "drop_quantity_at_or_below": 0.0,
+        "duplicate_policy": "drop_exact",
+        "inventory_code_pattern": "^\\d{5}[A-Z]{0,2}$|^DCGS",
+        "non_inventory_file": "config/non_inventory_stockcodes.csv"
+      },
+      "warnings": {
+        "abnormal_line_quantity": 5000,
+        "duplicate_max_row_share": 0.015,
+        "duplicate_max_units_share": 0.01
+      }
+    },
+    "data_sources": {
+      "citation": "Chen, D. (2019). Online Retail II [Dataset]. UCI Machine Learning Repository. CC BY 4.0",
+      "expected_sha256": "bcbe73b35f5b7babf197fb0cb983a11f5d9ff929078d4aa53d171b1f2df2e980",
+      "kaggle": {
+        "dataset": "mashlyn/online-retail-ii-uci",
+        "file": "online_retail_II.csv"
+      },
+      "preferred": "uci",
+      "raw_dir": "data/raw",
+      "uci": {
+        "archive_member": "online_retail_II.xlsx",
+        "sheets": [
+          "Year 2009-2010",
+          "Year 2010-2011"
+        ],
+        "url": "https://archive.ics.uci.edu/static/public/502/online+retail+ii.zip"
+      }
+    },
+    "inventory_policy": {
+      "abc": {
+        "a_cum_share": 0.8,
+        "b_cum_share": 0.95
+      },
+      "disclaimer": "z = 1.645 does not guarantee a 95% fill rate; the achieved fill rate is measured in the back-test (PRD §25)",
+      "lead_time_months": 1,
+      "sigma": {
+        "fallback_levels": [
+          "product",
+          "abc_group",
+          "global"
+        ],
+        "mad_scale": 1.4826,
+        "min_residuals_product": 6
+      },
+      "z": 1.645,
+      "z_options": [
+        1.28,
+        1.645,
+        2.05
+      ]
+    },
+    "model_config": {
+      "active_rule": {
+        "k": 6
+      },
+      "backtest": {
+        "first_origin": "2010-05",
+        "last_origin": "2011-10"
+      },
+      "champion_gates": {
+        "max_abs_bias": 0.1,
+        "meaningful_improvement_points": 2.0,
+        "monthly_abs_bias_report_threshold": 0.25,
+        "tie_wmape_points": 1.0
+      },
+      "features": [
+        "lag_1",
+        "lag_2",
+        "lag_3",
+        "rolling_mean_3",
+        "rolling_mean_6",
+        "rolling_median_6",
+        "rolling_std_3",
+        "rolling_max_6",
+        "nonzero_months_6",
+        "months_since_last_sale",
+        "product_age_months",
+        "invoice_count_lag_1",
+        "avg_unit_price_lag_1",
+        "target_month_of_year",
+        "target_quarter"
+      ],
+      "models": {
+        "B1_last_month": {
+          "clip_negative_for_business": false,
+          "kind": "baseline",
+          "loss": null,
+          "main_baseline": false,
+          "params": {},
+          "primary": false,
+          "reference_only": false
+        },
+        "B2_ma3": {
+          "clip_negative_for_business": false,
+          "kind": "baseline",
+          "loss": null,
+          "main_baseline": true,
+          "params": {},
+          "primary": false,
+          "reference_only": false
+        },
+        "B3_seasonal_naive": {
+          "clip_negative_for_business": false,
+          "kind": "baseline",
+          "loss": null,
+          "main_baseline": false,
+          "params": {},
+          "primary": false,
+          "reference_only": true
+        },
+        "M1_linear": {
+          "clip_negative_for_business": true,
+          "kind": "linear_regression",
+          "loss": null,
+          "main_baseline": false,
+          "params": {},
+          "primary": false,
+          "reference_only": false
+        },
+        "M2_gbm_poisson": {
+          "clip_negative_for_business": false,
+          "kind": "hist_gradient_boosting",
+          "loss": "poisson",
+          "main_baseline": false,
+          "params": {
+            "learning_rate": 0.05,
+            "max_iter": 300,
+            "max_leaf_nodes": 31
+          },
+          "primary": true,
+          "reference_only": false
+        },
+        "M3_gbm_squared": {
+          "clip_negative_for_business": false,
+          "kind": "hist_gradient_boosting",
+          "loss": "squared_error",
+          "main_baseline": false,
+          "params": {
+            "learning_rate": 0.05,
+            "max_iter": 300,
+            "max_leaf_nodes": 31
+          },
+          "primary": false,
+          "reference_only": false
+        },
+        "M4_gbm_absolute": {
+          "clip_negative_for_business": false,
+          "kind": "hist_gradient_boosting",
+          "loss": "absolute_error",
+          "main_baseline": false,
+          "params": {
+            "learning_rate": 0.05,
+            "max_iter": 300,
+            "max_leaf_nodes": 31
+          },
+          "primary": false,
+          "reference_only": false
+        }
+      },
+      "seed": 42,
+      "split": {
+        "first_target_month": "2010-03",
+        "holdout_targets": {
+          "end": "2011-11",
+          "start": "2011-06"
+        },
+        "never_score": [
+          "2011-12"
+        ],
+        "train_targets": {
+          "end": "2011-05",
+          "start": "2010-03"
+        },
+        "validation_targets": {
+          "end": "2011-05",
+          "start": "2011-01"
+        }
+      },
+      "tuning": {
+        "grid": {
+          "learning_rate": [
+            0.03,
+            0.05,
+            0.1
+          ],
+          "max_iter": [
+            100,
+            200,
+            400
+          ],
+          "max_leaf_nodes": [
+            15,
+            31,
+            63
+          ]
+        },
+        "metric": "wmape"
+      }
+    },
+    "non_inventory_stockcodes": [
+      {
+        "reason": "postage",
+        "status": "confirmed",
+        "stock_code": "POST"
+      },
+      {
+        "reason": "dotcom postage",
+        "status": "confirmed",
+        "stock_code": "DOT"
+      },
+      {
+        "reason": "carriage",
+        "status": "confirmed",
+        "stock_code": "C2"
+      },
+      {
+        "reason": "carriage / adjustment",
+        "status": "confirmed",
+        "stock_code": "C3"
+      },
+      {
+        "reason": "manual",
+        "status": "confirmed",
+        "stock_code": "M"
+      },
+      {
+        "reason": "manual (lower-case variant; merges with M after key normalisation)",
+        "status": "confirmed",
+        "stock_code": "m"
+      },
+      {
+        "reason": "discount",
+        "status": "confirmed",
+        "stock_code": "D"
+      },
+      {
+        "reason": "samples",
+        "status": "confirmed",
+        "stock_code": "S"
+      },
+      {
+        "reason": "bank charges",
+        "status": "confirmed",
+        "stock_code": "BANK CHARGES"
+      },
+      {
+        "reason": "adjustment",
+        "status": "confirmed",
+        "stock_code": "ADJUST"
+      },
+      {
+        "reason": "adjustment",
+        "status": "confirmed",
+        "stock_code": "ADJUST2"
+      },
+      {
+        "reason": "marketplace fee",
+        "status": "confirmed",
+        "stock_code": "AMAZONFEE"
+      },
+      {
+        "reason": "commission",
+        "status": "confirmed",
+        "stock_code": "CRUK"
+      },
+      {
+        "reason": "test row",
+        "status": "confirmed",
+        "stock_code": "TEST001"
+      },
+      {
+        "reason": "test row",
+        "status": "confirmed",
+        "stock_code": "TEST002"
+      },
+      {
+        "reason": "bad debt",
+        "status": "confirmed",
+        "stock_code": "B"
+      },
+      {
+        "reason": "gift voucher",
+        "status": "confirmed",
+        "stock_code": "GIFT"
+      },
+      {
+        "reason": "gift voucher",
+        "status": "confirmed",
+        "stock_code": "gift_0001_10"
+      },
+      {
+        "reason": "gift voucher",
+        "status": "confirmed",
+        "stock_code": "gift_0001_20"
+      },
+      {
+        "reason": "gift voucher",
+        "status": "confirmed",
+        "stock_code": "gift_0001_30"
+      },
+      {
+        "reason": "gift voucher",
+        "status": "confirmed",
+        "stock_code": "gift_0001_40"
+      },
+      {
+        "reason": "gift voucher",
+        "status": "confirmed",
+        "stock_code": "gift_0001_50"
+      },
+      {
+        "reason": "gift voucher",
+        "status": "confirmed",
+        "stock_code": "gift_0001_60"
+      },
+      {
+        "reason": "gift voucher",
+        "status": "confirmed",
+        "stock_code": "gift_0001_70"
+      },
+      {
+        "reason": "gift voucher",
+        "status": "confirmed",
+        "stock_code": "gift_0001_80"
+      },
+      {
+        "reason": "gift voucher",
+        "status": "confirmed",
+        "stock_code": "gift_0001_90"
+      },
+      {
+        "reason": "packaging (price 0.001 — review)",
+        "status": "confirmed",
+        "stock_code": "PADS"
+      },
+      {
+        "reason": "real product with non-standard code; only 3 return rows — documented not modelled",
+        "status": "confirmed",
+        "stock_code": "SP1002"
+      }
+    ]
+  },
+  "data": {
+    "columns": 9,
+    "file": "C:\\Users\\Matan Hillel\\OneDrive\\Desktop\\AI\\final_project\\retail-demand-forecasting\\data\\raw\\online_retail_II.xlsx",
+    "rows": 1067371,
+    "sha256": "bcbe73b35f5b7babf197fb0cb983a11f5d9ff929078d4aa53d171b1f2df2e980"
+  },
+  "errors": [],
+  "finished_at": "2026-08-16T13:07:08.093278+00:00",
+  "metrics": {
+    "eda_analyses": 14,
+    "eda_figures": 17,
+    "eda_insights": 12,
+    "eda_tables": 32
+  },
+  "mode": "no-llm",
+  "run_id": "20260816T130627Z-674246",
+  "seed": 42,
+  "started_at": "2026-08-16T13:06:27.445690+00:00",
+  "status": "success",
+  "steps": [
+    {
+      "duration_s": 40.592,
+      "inputs": {},
+      "name": "run_eda",
+      "outputs": {
+        "raw_columns": [
+          "Invoice",
+          "StockCode",
+          "Description",
+          "Quantity",
+          "InvoiceDate",
+          "Price",
+          "Customer ID",
+          "Country",
+          "source_sheet"
+        ],
+        "raw_rows_per_sheet": {
+          "Year 2009-2010": 525461,
+          "Year 2010-2011": 541910
+        }
+      },
+      "row_counts": {},
+      "started_at": "2026-08-16T13:06:27.500162+00:00",
+      "status": "success",
+      "warnings": [
+        "source sheets overlap on 2010-12: 1088 invoice number(s) appear in more than one sheet and 22202 rows are cross-sheet exact duplicates — the shared period is double-counted before de-duplication",
+        "raw exact duplicates are 3.2168% of rows and 1.8732% of units, above the 1.5000% / 1.0000% thresholds (§11)",
+        "27 returned stock code(s) covering 9158 returned units have no row in the panel (returned in a month they never sold, or excluded as non-inventory)"
+      ]
+    }
+  ],
+  "versions": {
+    "crewai": "0.86.0",
+    "numpy": "1.26.4",
+    "pandas": "2.2.3",
+    "python": "3.11.15",
+    "sklearn": "1.5.2",
+    "streamlit": "1.39.0"
+  },
+  "warnings": [
+    "source sheets overlap on 2010-12: 1088 invoice number(s) appear in more than one sheet and 22202 rows are cross-sheet exact duplicates — the shared period is double-counted before de-duplication",
+    "raw exact duplicates are 3.2168% of rows and 1.8732% of units, above the 1.5000% / 1.0000% thresholds (§11)",
+    "27 returned stock code(s) covering 9158 returned units have no row in the panel (returned in a month they never sold, or excluded as non-inventory)"
+  ]
+}
