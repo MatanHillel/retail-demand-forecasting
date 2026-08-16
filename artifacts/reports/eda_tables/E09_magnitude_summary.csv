@@ -1,0 +1,12 @@
+metric,statistic,value
+units_sold_nonzero,count,65864.0000
+units_sold_nonzero,mean,169.8658
+units_sold_nonzero,max,80995.0000
+units_sold_nonzero,p10,2.0000
+units_sold_nonzero,p25,8.0000
+units_sold_nonzero,p50,37.0000
+units_sold_nonzero,p75,149.0000
+units_sold_nonzero,p90,425.0000
+units_sold_nonzero,p99,1831.7400
+units_sold_nonzero,p999,5273.9590
+abnormal_line_quantity_threshold,value,5000.0000

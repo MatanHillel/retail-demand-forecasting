@@ -20,7 +20,6 @@ run's* view of the artifacts tree (staged copy first, final second) and merged b
 from __future__ import annotations
 
 import argparse
-import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -38,13 +37,29 @@ from pipeline.eda import (
     e05_lifecycle,
     e06_abc,
     e07_top_products,
+    e08_intermittency,
+    e09_outliers,
+    e10_order_structure,
+    e11_customers_countries,
+    e12_returns,
+    e13_price,
+    e14_panel_preview,
 )
+from pipeline.eda.index import INDEX_FILENAME, build_entry, index_path, merge_entries
 from pipeline.eda.io import TABLE_FORMATS, table_path
 from pipeline.run_context import RunContext
 
-#: File name of the index inside ``paths.EDA_TABLES_DIR``. There is no ``paths`` constant for the
-#: file itself, so it is built from the directory constant rather than typed as a path.
-INDEX_FILENAME = "index.json"
+__all__ = [
+    "ANALYSES",
+    "ANALYSES_BY_ID",
+    "Analysis",
+    "INDEX_FILENAME",
+    "index_path",
+    "load_inputs",
+    "main",
+    "run_analyses",
+    "written_table_path",
+]
 
 AnalysisRun = Callable[[pd.DataFrame, pd.DataFrame, CleaningConfig, RunContext], dict[str, Any]]
 
@@ -60,7 +75,7 @@ class Analysis:
 
 #: Every analysis this runner knows about, in report order. E1 is produced by
 #: :mod:`pipeline.quality` (US-07), which needs the *raw* extract as well and therefore has its
-#: own entry point; E8-E14 arrive with US-10.
+#: own entry point; it registers its own index entry through :mod:`pipeline.eda.index`.
 ANALYSES: tuple[Analysis, ...] = (
     Analysis("E2", "Demand over time, seasonality and year-on-year growth",
              e02_demand_over_time.run),
@@ -69,14 +84,18 @@ ANALYSES: tuple[Analysis, ...] = (
     Analysis("E5", "Product lifecycle", e05_lifecycle.run),
     Analysis("E6", "ABC concentration and the Pareto curve", e06_abc.run),
     Analysis("E7", "Top twenty products by units and by revenue", e07_top_products.run),
+    Analysis("E8", "Intermittency and the zero-target share by k", e08_intermittency.run),
+    Analysis("E9", "Demand magnitude and outliers", e09_outliers.run),
+    Analysis("E10", "Order structure: invoice value, lines and wholesale sizing",
+             e10_order_structure.run),
+    Analysis("E11", "Customers and countries (descriptive only)", e11_customers_countries.run),
+    Analysis("E12", "Returns and cancellations behind the gross-demand definition",
+             e12_returns.run),
+    Analysis("E13", "Unit price level and stability", e13_price.run),
+    Analysis("E14", "Panel preview read back from clean_data.csv", e14_panel_preview.run),
 )
 
 ANALYSES_BY_ID: dict[str, Analysis] = {analysis.id: analysis for analysis in ANALYSES}
-
-
-def index_path() -> Path:
-    """Repo-relative location of the index file."""
-    return (paths.EDA_TABLES_DIR / INDEX_FILENAME).relative_to(paths.PROJECT_ROOT)
 
 
 def written_table_path(name: str, ctx: RunContext) -> Path:
@@ -91,51 +110,6 @@ def written_table_path(name: str, ctx: RunContext) -> Path:
             if candidate.is_file():
                 return relative
     return table_path(name)
-
-
-def read_index(ctx: RunContext) -> dict[str, dict[str, Any]]:
-    """Load the current index, staged copy first, keyed by analysis id.
-
-    Resolved the same way :func:`pipeline.eda.io.load_table` resolves a table, and deliberately
-    *not* through ``ctx.out()``: ``out()`` registers a path for promotion, so using it to locate a
-    file makes ``promote()`` warn about an artifact this run never wrote.
-    """
-    relative = index_path()
-    for candidate in (ctx.staging_dir / relative, ctx.base_dir / relative):
-        if candidate.is_file():
-            entries = json.loads(candidate.read_text(encoding="utf-8"))
-            return {entry["id"]: entry for entry in entries}
-    return {}
-
-
-def write_index(entries: dict[str, dict[str, Any]], ctx: RunContext) -> Path:
-    """Write the merged index, sorted by analysis number so the file is stable across runs."""
-    ordered = sorted(entries.values(), key=lambda entry: int(str(entry["id"]).lstrip("E")))
-    relative = index_path()
-    destination = ctx.out(relative)
-    destination.write_text(
-        json.dumps(ordered, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-        newline="\n",
-    )
-    ctx.record_artifact("eda_tables_index", relative)
-    ctx.logger.info(f"index written: {relative.as_posix()} ({len(ordered)} analyses)")
-    return destination
-
-
-def _entry(analysis: Analysis, result: dict[str, Any]) -> dict[str, Any]:
-    """Index record for one analysis.
-
-    ``one_line_summary_placeholder`` is exactly that — a slot US-11 fills from the computed
-    tables. No number is written here: narrative numbers may only come from a table (§35A.2).
-    """
-    return {
-        "id": analysis.id,
-        "title": analysis.title,
-        "table_names": sorted(result["tables"]),
-        "figure_names": sorted(result["figures"]),
-        "one_line_summary_placeholder": "",
-    }
 
 
 def run_analyses(
@@ -154,14 +128,16 @@ def run_analyses(
         )
 
     selected = [analysis for analysis in ANALYSES if analysis.id in set(ids)]
-    entries = read_index(ctx)
     results: dict[str, dict[str, Any]] = {}
+    entries = []
     for analysis in selected:
         ctx.logger.info(f"{analysis.id}: {analysis.title}")
         result = analysis.run(clean_df, panel_df, cfg, ctx)
         results[analysis.id] = result
-        entries[analysis.id] = _entry(analysis, result)
-    write_index(entries, ctx)
+        entries.append(
+            build_entry(analysis.id, analysis.title, result["tables"], result["figures"])
+        )
+    merge_entries(entries, ctx)
     return results
 
 

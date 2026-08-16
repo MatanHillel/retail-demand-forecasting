@@ -1,5 +1,20 @@
 [
   {
+    "id": "E1",
+    "title": "Data quality and the cleaning waterfall",
+    "table_names": [
+      "E01_abnormal_lines",
+      "E01_cleaning_waterfall",
+      "E01_duplicates_summary",
+      "E01_missing_values",
+      "E01_nonproduct_codes"
+    ],
+    "figure_names": [
+      "E01_waterfall"
+    ],
+    "one_line_summary_placeholder": ""
+  },
+  {
     "id": "E2",
     "title": "Demand over time, seasonality and year-on-year growth",
     "table_names": [
@@ -74,6 +89,88 @@
       "E07_top20_revenue",
       "E07_top20_units"
     ],
+    "one_line_summary_placeholder": ""
+  },
+  {
+    "id": "E8",
+    "title": "Intermittency and the zero-target share by k",
+    "table_names": [
+      "E08_zero_share_by_k",
+      "E08_zero_share_per_product"
+    ],
+    "figure_names": [
+      "E08_zero_share_by_k",
+      "E08_zero_share_hist"
+    ],
+    "one_line_summary_placeholder": ""
+  },
+  {
+    "id": "E9",
+    "title": "Demand magnitude and outliers",
+    "table_names": [
+      "E09_largest_lines",
+      "E09_largest_product_months",
+      "E09_magnitude_summary"
+    ],
+    "figure_names": [
+      "E09_units_hist_log"
+    ],
+    "one_line_summary_placeholder": ""
+  },
+  {
+    "id": "E10",
+    "title": "Order structure: invoice value, lines and wholesale sizing",
+    "table_names": [
+      "E10_invoice_summary"
+    ],
+    "figure_names": [
+      "E10_invoice_hist"
+    ],
+    "one_line_summary_placeholder": ""
+  },
+  {
+    "id": "E11",
+    "title": "Customers and countries (descriptive only)",
+    "table_names": [
+      "E11_customer_identification",
+      "E11_top10_countries"
+    ],
+    "figure_names": [
+      "E11_top_countries"
+    ],
+    "one_line_summary_placeholder": ""
+  },
+  {
+    "id": "E12",
+    "title": "Returns and cancellations behind the gross-demand definition",
+    "table_names": [
+      "E12_cancellation_rate_monthly",
+      "E12_top_returned"
+    ],
+    "figure_names": [
+      "E12_cancellation_rate"
+    ],
+    "one_line_summary_placeholder": ""
+  },
+  {
+    "id": "E13",
+    "title": "Unit price level and stability",
+    "table_names": [
+      "E13_price_distribution",
+      "E13_price_stability"
+    ],
+    "figure_names": [
+      "E13_price_hist"
+    ],
+    "one_line_summary_placeholder": ""
+  },
+  {
+    "id": "E14",
+    "title": "Panel preview read back from clean_data.csv",
+    "table_names": [
+      "E14_panel_preview"
+    ],
+    "figure_names": [],
     "one_line_summary_placeholder": ""
   }
 ]

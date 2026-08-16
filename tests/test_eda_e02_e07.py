@@ -354,7 +354,11 @@ def test_unknown_analysis_id_is_rejected(sample_run: SimpleNamespace, ctx: RunCo
 
 
 def test_registry_covers_e2_to_e7() -> None:
-    assert [analysis.id for analysis in ANALYSES] == ALL_IDS
+    """E2-E7 are registered, in order. Later issues append to the registry, so this is a
+    containment check rather than an equality one — US-10 adds E8-E14 to the same tuple."""
+    registered = [analysis.id for analysis in ANALYSES]
+    assert registered[: len(ALL_IDS)] == ALL_IDS
+    assert len(set(registered)) == len(registered), "no analysis may be registered twice"
 
 
 # --------------------------------------------------------------------------

@@ -22,6 +22,7 @@ from typing import Any
 import pandas as pd
 
 from pipeline.config import CleaningConfig
+from pipeline.eda.index import build_entry, merge_entries
 from pipeline.eda.io import load_table, save_figure, save_table
 from pipeline.eda.style import PALETTE, apply_style, finalize, plt
 from pipeline.quality import (
@@ -32,6 +33,9 @@ from pipeline.quality import (
     profile_raw,
 )
 from pipeline.run_context import RunContext
+
+ANALYSIS_ID = "E1"
+ANALYSIS_TITLE = "Data quality and the cleaning waterfall"
 
 #: Name of the waterfall table US-04 writes; E1 verifies it rather than recomputing it.
 WATERFALL_TABLE = "E01_cleaning_waterfall"
@@ -155,6 +159,10 @@ def run(
     save_table(tables["E01_duplicates_summary"], "E01_duplicates_summary", ctx, fmt="json")
 
     figures = {"E01_waterfall": _waterfall_figure(waterfall_df, ctx)}
+
+    # E1 is part of the report's contents page too. The index merges by analysis id, so this
+    # entry survives a later E2-E14 run and US-11 sees all fourteen (US-10 acceptance criteria).
+    merge_entries([build_entry(ANALYSIS_ID, ANALYSIS_TITLE, tables, figures)], ctx)
 
     findings = build_data_quality_findings(
         raw_df,

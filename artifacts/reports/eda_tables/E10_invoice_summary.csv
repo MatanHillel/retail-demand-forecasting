@@ -1,0 +1,33 @@
+metric,unit,statistic,value
+invoice_value,GBP,count,39516.0000
+invoice_value,GBP,mean,497.1112
+invoice_value,GBP,min,0.1900
+invoice_value,GBP,p10,63.3550
+invoice_value,GBP,p25,150.3200
+invoice_value,GBP,p50,301.2300
+invoice_value,GBP,p75,484.4000
+invoice_value,GBP,p90,905.5600
+invoice_value,GBP,p99,4103.9240
+invoice_value,GBP,max,168469.6000
+lines_per_invoice,lines,count,39516.0000
+lines_per_invoice,lines,mean,25.3907
+lines_per_invoice,lines,min,1.0000
+lines_per_invoice,lines,p10,2.0000
+lines_per_invoice,lines,p25,6.0000
+lines_per_invoice,lines,p50,15.0000
+lines_per_invoice,lines,p75,29.0000
+lines_per_invoice,lines,p90,52.0000
+lines_per_invoice,lines,p99,198.0000
+lines_per_invoice,lines,max,1112.0000
+quantity_per_line,units,count,1003338.0000
+quantity_per_line,units,mean,11.1508
+quantity_per_line,units,min,1.0000
+quantity_per_line,units,p10,1.0000
+quantity_per_line,units,p25,1.0000
+quantity_per_line,units,p50,4.0000
+quantity_per_line,units,p75,12.0000
+quantity_per_line,units,p90,24.0000
+quantity_per_line,units,p99,108.0000
+quantity_per_line,units,max,80995.0000
+wholesale_lines,lines with quantity >= 12,count,253338.0000
+wholesale_lines,lines with quantity >= 12,share,0.2525
