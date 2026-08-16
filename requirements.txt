@@ -26,6 +26,17 @@ streamlit==1.39.0
 # --- agents ----------------------------------------------------------------
 crewai==0.86.0
 crewai-tools==0.17.0
+# crewai 0.86.0 imports pkg_resources in crewai/telemetry/telemetry.py, so setuptools is a hard
+# runtime dependency of the crews and `import crewai` fails without it. Neither `uv venv` nor a
+# 3.12+ `venv` seeds it, so it is pinned here rather than left to the environment (PRD §40).
+setuptools==75.6.0
+# Transitive (crewai -> chromadb -> onnxruntime), pinned because it is not version-independent:
+# `import crewai` loads chromadb, which instantiates its default ONNX embedding function at
+# import time. On Windows, onnxruntime >= 1.21 and pyarrow 17 ship incompatible copies of the
+# same runtime DLLs, so `import pandas` followed by `import crewai` dies with
+# "DLL load failed while importing onnxruntime_pybind11_state". 1.20.1 is the newest release
+# that coexists with the pinned pyarrow.
+onnxruntime==1.20.1
 
 # --- deliverables ----------------------------------------------------------
 python-pptx==1.0.2

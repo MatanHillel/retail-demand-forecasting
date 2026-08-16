@@ -1,0 +1,88 @@
+# Data Analyst Crew — the three tasks of US-12 §2, run with Process.sequential in this order.
+#
+# T1 profiles the raw extract, T2 cleans and aggregates it, T3 analyses the result and writes the
+# narrative and the contract. The order is not a suggestion: T2's tools read what T1 loaded and
+# T3's tools read what T2 built, and a tool called out of turn returns an error telling the agent
+# which tool to run first.
+#
+# The expected outputs below are the exact artifact names of PRD §41. Note that
+# data_quality_findings.json is assembled by run_eda in T3, not by T1: it contains the cleaning
+# waterfall and the panel preview, neither of which exists until T2 has run.
+
+quality_profiling:
+  description: >
+    Profile the raw Online Retail II extract and confirm the exclusion list.
+
+    Call, in this order: profile_raw, then detect_duplicates, then list_nonproduct_codes.
+    Read what each returns.
+
+    Then call write_data_quality_review with a short markdown review (about 300-400 words)
+    covering:
+      - what the extract contains and which quality issues matter for a monthly demand forecast;
+      - the duplicate result and whether it breached the configured threshold;
+      - which exclusion-list rows the data confirms, and which stock codes were flagged
+        review_needed — name them, and state plainly that they are NOT excluded because that is a
+        human decision (PRD §12);
+      - rows with no customer id, which are kept (an anonymous sale still consumed inventory);
+      - your recommendation: proceed to cleaning, or stop and why.
+
+    Every number you write is checked against the three tool outputs and the review is rejected
+    if any number is not among them. Do not round, do not convert a count into a percentage of
+    your own, and do not restate a figure from memory — copy it from the tool result. If
+    write_data_quality_review rejects your draft it will tell you exactly which numbers were
+    unbacked: delete those sentences or quote the tool output exactly, and call it again.
+  expected_output: >
+    A one-paragraph confirmation that the review was published, naming the file that was written
+    and the number of codes flagged review_needed. The review itself is written by the tool, not
+    returned here.
+  agent: data_quality_analyst
+
+cleaning_and_panel:
+  description: >
+    Turn the raw extract into the two hand-off datasets.
+
+    Call clean_transactions, then build_panel — in that order; build_panel reads what
+    clean_transactions produced and will refuse if it has not run.
+
+    Then report the row-count waterfall in plain language: how many rows entered, how many left
+    at each named step and why, and how many product-month rows the panel holds. State the share
+    of panel rows that are zero-filled and say what it means for forecasting — a product-month
+    with no sales is an explicit zero, never a missing row.
+
+    Quote every figure from the two tool results. You have no way to verify a number you did not
+    read there, so do not state one.
+  expected_output: >
+    A short markdown summary (under 250 words) of the cleaning waterfall and the resulting panel,
+    every number taken from the clean_transactions and build_panel tool results, ending with the
+    paths of the two files that were written.
+  agent: data_preparation_analyst
+
+eda_and_contract:
+  description: >
+    Produce the exploratory analysis, the business narrative and the dataset contract.
+
+    First call run_eda. It runs all fourteen analyses, writes every figure and table, and
+    assembles eda_report.html, data_quality_findings.json and a deterministic insights.md. It
+    returns the list of tables that now exist.
+
+    Then read the tables you intend to cite with read_table (each returns at most 20 rows), and
+    read_findings for the data-quality summary. These tables are the only permitted source of
+    numbers in this project.
+
+    Then call write_insights_narrative with a rewritten insights.md that keeps the structure of
+    the deterministic version:
+      - the same heading and the numbered list of 8 to 12 insights;
+      - each insight stating the fact and then a "so what" for inventory planning — what a
+        planner should do differently because of it;
+      - each insight naming the analysis (E02, E06, ...) and the table it came from.
+    Improve the prose, the ordering and the business framing. Do not improve the numbers. Every
+    number you write is checked against the computed tables; if even one is unbacked your entire
+    draft is discarded and the deterministic version is restored, so quote each figure exactly as
+    read_table returned it.
+
+    Finally call write_contract to write dataset_contract.json.
+  expected_output: >
+    A short report (under 200 words) stating whether your insights narrative was accepted or
+    rejected by the numbers guard, how many insights it contains, and confirming that
+    eda_report.html, insights.md and dataset_contract.json were written.
+  agent: business_eda_analyst

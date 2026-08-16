@@ -338,3 +338,77 @@ Rules for callers:
   standalone `python -m pipeline.contract write` records `null` rather than fabricating a hash.
 * **Read `clean_data.csv` with `read_panel`.** Plain `pd.read_csv` infers `stock_code` as an
   integer — `01234` loses its leading zero and then fails a pattern it actually matches.
+
+---
+
+## 9. `crews.common` & `crews.data_analyst` — the crew layer (US-12)
+
+Numbered after §8 for the same reason §7 was: the §6 rule numbers are cited from open issues and
+must not shift. **CrewAI may be imported here and nowhere else** (§6 rule 10) — that one-way
+direction is what keeps `--no-llm` runs free of any LLM import.
+
+```python
+# crews.common — shared by both crews (US-12 here, US-26 next)
+API_KEY_VARIABLES: tuple[str, ...]      # ("OPENAI_API_KEY", "ANTHROPIC_API_KEY"), tried in order
+MODEL_VARIABLE: str                     # "CREWAI_LLM_MODEL"
+DEFAULT_MODEL, LLM_TEMPERATURE, NO_API_KEY_MESSAGE
+MissingAPIKeyError(RuntimeError)
+api_key_variable() -> str | None        # the variable NAME; the value is never returned
+require_api_key() -> str                # raises MissingAPIKeyError
+llm_model_name() -> str
+make_llm(*, seed=None, temperature=0.0) -> crewai.LLM
+GuardDecision(label, accepted, text, checked, unmatched); .message -> str
+NarrativeGuard(label, tables, fallback)
+    .review(candidate) -> GuardDecision                  # pure: decides, writes nothing
+    .publish(candidate, destination, ctx) -> GuardDecision
+record_token_usage(ctx, label, usage) -> dict[str, int]  # merges into run_log.json -> metrics
+
+# crews.data_analyst
+make_tools(ctx) -> list[BaseTool]                        # every tool, bound to the run
+DataAnalystToolset(ctx)                                  # .tools, .by_agent, .state
+DataAnalystCrew(ctx, llm=None)                           # .agents, .tasks, .crew()
+build_crew(ctx, llm=None) -> Crew
+run_data_analyst_crew(ctx) -> dict
+verify_outputs(ctx) -> list[str]                         # required outputs not written this run
+AGENT_ORDER, TASK_ORDER, REQUIRED_OUTPUTS, METRICS_LABEL
+relative_path(path) -> Path                              # repo-relative, for ctx.out()
+resolve_read(ctx, relative) -> Path                      # staged copy first, final second
+review_path() -> Path                                    # artifacts/reports/data_quality_review.md
+deterministic_review(state) -> str
+```
+
+Rules these modules add to §6:
+
+* **A crew tool takes no argument the model must not choose.** Every deterministic function the
+  crew wraps needs DataFrames, a config object and `ctx` — none of which a language model can
+  supply — so the tools are built by a factory closing over the run and carry frames between calls
+  on `DataAnalystToolset.state`. The four writing tools expose an *empty* argument schema. A later
+  crew must do the same: `make_tools(ctx)`, never a module-level tool list.
+* **An agent's mistake is not a failed run.** Calling a tool before its inputs exist returns a JSON
+  `{"error": ...}` **without opening a step**, so nothing lands in `ctx.errors`, `ctx.status` stays
+  `running` and the run remains promotable. Only a genuine exception inside `ctx.step(...)` fails
+  the run. Getting this backwards makes a recoverable retry poison the whole run, because
+  `ctx.step` sets `status = "failed"` on any exception it sees.
+* **The narrative guard decides, the deterministic version wins ties.** `insights.md` is written
+  deterministically by `generate_insights` (US-11), which has *already* run `numbers_in_tables` on
+  it — so the fallback is known-good. A rewrite is published only if every number in it is in a
+  computed table; on rejection the deterministic text is written to `ctx.out(paths.INSIGHTS…)`,
+  i.e. **this** run's destination, never the final path (which still holds the previous run's copy
+  under staging). `run_data_analyst_crew` re-checks the published file after `kickoff()`.
+* **A narrative may only quote numbers that exist in a table — including the crew's own.** The
+  exclusion list has no numeric column, so counts like "28 confirmed codes" are computed by the
+  `list_nonproduct_codes` tool and recorded on the state; the review quotes them from there. A
+  count computed inside a narrative writer is a §38 violation even when the writer is Python.
+* **Completeness is checked, not inferred.** `promote()` only warns about a registered path that
+  was never written (§6 rule 8), so `verify_outputs(ctx)` checks the required artifacts against the
+  **staged** paths (rule 7) and `run_data_analyst_crew` raises when any is missing.
+* **The credential stays in the environment.** `make_llm` confirms a key is present and lets
+  LiteLLM read it; the value is never passed as an argument, never stored and never logged — only
+  the variable *name* is. No credential may enter `config/*.yaml`, which `config_snapshot()`
+  serialises verbatim into `run_log.json` (§6 rule 11).
+* **Check for the key before `RunContext.start()`.** The exit-2 path must leave no run log stranded
+  at `status: "running"` for a run that never began.
+* **Two dependencies are pinned for import-time reasons, not features.** `setuptools` (crewai 0.86
+  imports `pkg_resources`) and `onnxruntime==1.20.1` (crewai → chromadb instantiates its default
+  ONNX embedding function at import time; ≥ 1.21 and pyarrow 17 ship incompatible DLLs on Windows,
+  so `import pandas` followed by `import crewai` dies). Both are in `requirements.txt`.

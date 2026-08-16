@@ -30,6 +30,9 @@ where = ["src"]
 # a non-editable install and eda_report.html cannot be rendered (US-11).
 [tool.setuptools.package-data]
 pipeline = ["eda/templates/*.j2"]
+# Same reason: agents.yaml and tasks.yaml define the crew itself, so they are runtime assets and
+# a non-editable install without them cannot build the Data Analyst Crew (US-12).
+crews = ["data_analyst/config/*.yaml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
