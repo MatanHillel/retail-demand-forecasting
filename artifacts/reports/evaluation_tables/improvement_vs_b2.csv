@@ -1,0 +1,8 @@
+model,wmape,wmape_b2,wmape_points_vs_b2,relative_pct,meaningful
+B1_last_month,0.557127,0.547412,-0.009715,-0.017747,False
+B2_ma3,0.547412,0.547412,0.000000,0.000000,False
+B3_seasonal_naive,0.895906,0.547412,-0.348494,-0.636621,False
+M1_linear,0.560314,0.547412,-0.012902,-0.023569,False
+M2_gbm_poisson,0.525958,0.547412,0.021454,0.039192,False
+M3_gbm_squared,0.543340,0.547412,0.004072,0.007438,False
+M4_gbm_absolute,0.501681,0.547412,0.045731,0.083541,False
