@@ -1,0 +1,15 @@
+model,policy,n_rows,total_excess,top_1pct_share,top_5pct_share
+B1_last_month,forecast_only,16529,532116.000000,0.332018,0.709176
+B1_last_month,forecast_plus_ss,16529,2136719.000000,0.201670,0.474085
+B2_ma3,forecast_only,16529,446805.000000,0.285319,0.628296
+B2_ma3,forecast_plus_ss,16529,2210581.000000,0.180693,0.434109
+B3_seasonal_naive,forecast_only,16529,1363857.000000,0.279086,0.576365
+B3_seasonal_naive,forecast_plus_ss,16529,2974648.000000,0.189363,0.438096
+M1_linear,forecast_only,16529,426290.000000,0.197269,0.453543
+M1_linear,forecast_plus_ss,16529,2170269.000000,0.145964,0.365529
+M2_gbm_poisson,forecast_only,16529,604495.000000,0.248005,0.546795
+M2_gbm_poisson,forecast_plus_ss,16529,2295561.000000,0.176176,0.421897
+M3_gbm_squared,forecast_only,16529,656546.000000,0.232585,0.504600
+M3_gbm_squared,forecast_plus_ss,16529,2403832.000000,0.181130,0.418295
+M4_gbm_absolute,forecast_only,16529,271830.000000,0.276861,0.647478
+M4_gbm_absolute,forecast_plus_ss,16529,1580313.000000,0.166970,0.442565

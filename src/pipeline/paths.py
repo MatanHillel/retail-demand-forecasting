@@ -66,6 +66,8 @@ MODEL_CARD: Path = REPORTS_DIR / "model_card.md"              # required artifac
 CHAMPION_DECISION: Path = REPORTS_DIR / "champion_decision.json"
 DATA_QUALITY_FINDINGS: Path = REPORTS_DIR / "data_quality_findings.json"
 FEATURE_VALIDATION: Path = REPORTS_DIR / "feature_validation.json"
+HOLDOUT_ROWS_ALL_MODELS: Path = EVAL_TABLES_DIR / "holdout_rows_all_models.csv"
+EXCESS_CONCENTRATION: Path = EVAL_TABLES_DIR / "excess_concentration.csv"
 
 # --- contracts & run bookkeeping -------------------------------------------
 DATASET_CONTRACT: Path = CONTRACTS_DIR / "dataset_contract.json"  # required artifact
