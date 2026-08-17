@@ -1,0 +1,75 @@
+{
+  "features": [
+    "lag_1",
+    "lag_2",
+    "lag_3",
+    "rolling_mean_3",
+    "rolling_mean_6",
+    "rolling_median_6",
+    "rolling_std_3",
+    "rolling_max_6",
+    "nonzero_months_6",
+    "months_since_last_sale",
+    "product_age_months",
+    "invoice_count_lag_1",
+    "avg_unit_price_lag_1",
+    "target_month_of_year",
+    "target_quarter"
+  ],
+  "holdout_target_end": "2011-11",
+  "holdout_target_start": "2011-06",
+  "models": [
+    {
+      "fit_seconds": 0.028407,
+      "kind": "linear_regression",
+      "loss": null,
+      "model_id": "M1_linear",
+      "n_train_rows": 52214,
+      "negative_prediction_share_train": 0.126307,
+      "params": {}
+    },
+    {
+      "fit_seconds": 0.899806,
+      "kind": "hist_gradient_boosting",
+      "loss": "poisson",
+      "model_id": "M2_gbm_poisson",
+      "n_train_rows": 52214,
+      "negative_prediction_share_train": 0.0,
+      "params": {
+        "learning_rate": 0.03,
+        "max_iter": 200,
+        "max_leaf_nodes": 31
+      }
+    },
+    {
+      "fit_seconds": 0.514569,
+      "kind": "hist_gradient_boosting",
+      "loss": "squared_error",
+      "model_id": "M3_gbm_squared",
+      "n_train_rows": 52214,
+      "negative_prediction_share_train": 0.00044,
+      "params": {
+        "learning_rate": 0.03,
+        "max_iter": 200,
+        "max_leaf_nodes": 15
+      }
+    },
+    {
+      "fit_seconds": 0.414219,
+      "kind": "hist_gradient_boosting",
+      "loss": "absolute_error",
+      "model_id": "M4_gbm_absolute",
+      "n_train_rows": 52214,
+      "negative_prediction_share_train": 0.007603,
+      "params": {
+        "learning_rate": 0.05,
+        "max_iter": 100,
+        "max_leaf_nodes": 15
+      }
+    }
+  ],
+  "seed": 42,
+  "sklearn_version": "1.5.2",
+  "train_target_end": "2011-05",
+  "train_target_start": "2010-03"
+}
