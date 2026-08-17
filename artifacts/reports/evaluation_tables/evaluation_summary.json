@@ -1,0 +1,107 @@
+{
+  "abc_source": "training window through 2011-05",
+  "generated_at": "2026-08-17T10:28:43.040908+00:00",
+  "holdout_months": [
+    "2011-06",
+    "2011-07",
+    "2011-08",
+    "2011-09",
+    "2011-10",
+    "2011-11"
+  ],
+  "n_products": 3750,
+  "overall": [
+    {
+      "bias": -0.08463548371121794,
+      "coverage_share": 1.0,
+      "mae": 85.07351762820512,
+      "model": "B1_last_month",
+      "n_rows": 19968,
+      "negative_share_raw": 0.0,
+      "note": "",
+      "rmse": 250.26316457375015,
+      "sum_actual": 3049123.0,
+      "sum_forecast": 2791059.0,
+      "wmape": 0.5571267541519316
+    },
+    {
+      "bias": -0.17388650556241908,
+      "coverage_share": 1.0,
+      "mae": 83.59004368489583,
+      "model": "B2_ma3",
+      "n_rows": 19968,
+      "negative_share_raw": 0.0,
+      "note": "",
+      "rmse": 251.10120158129433,
+      "sum_actual": 3049123.0,
+      "sum_forecast": 2518921.6565,
+      "wmape": 0.547411827040103
+    },
+    {
+      "bias": 0.35031332351360933,
+      "coverage_share": 0.8277744391025641,
+      "mae": 118.63700163349264,
+      "model": "B3_seasonal_naive",
+      "n_rows": 16529,
+      "negative_share_raw": 0.0,
+      "note": "B3 (seasonal naive) has no observed month t-12 for every product; metrics computed only on rows where a seasonal forecast exists (see coverage_share).",
+      "rmse": 359.8124082701135,
+      "sum_actual": 2188792.0,
+      "sum_forecast": 2955555.0,
+      "wmape": 0.8959055954151879
+    },
+    {
+      "bias": -0.18121957025479132,
+      "coverage_share": 1.0,
+      "mae": 85.56013724188702,
+      "model": "M1_linear",
+      "n_rows": 19968,
+      "negative_share_raw": 0.13927283653846154,
+      "note": "",
+      "rmse": 257.76619393293066,
+      "sum_actual": 3049123.0,
+      "sum_forecast": 2496562.240286,
+      "wmape": 0.560313513244956
+    },
+    {
+      "bias": 0.0068911116196362,
+      "coverage_share": 1.0,
+      "mae": 80.31399894235778,
+      "model": "M2_gbm_poisson",
+      "n_rows": 19968,
+      "negative_share_raw": 0.0,
+      "note": "",
+      "rmse": 237.02884030642448,
+      "sum_actual": 3049123.0,
+      "sum_forecast": 3070134.846935,
+      "wmape": 0.525957769129353
+    },
+    {
+      "bias": 0.015058908151294653,
+      "coverage_share": 1.0,
+      "mae": 82.96827206385215,
+      "model": "M3_gbm_squared",
+      "n_rows": 19968,
+      "negative_share_raw": 0.0,
+      "note": "",
+      "rmse": 230.86419001118313,
+      "sum_actual": 3049123.0,
+      "sum_forecast": 3095039.4631990003,
+      "wmape": 0.5433399887675898
+    },
+    {
+      "bias": -0.25785584209590756,
+      "coverage_share": 1.0,
+      "mae": 76.60688700235376,
+      "model": "M4_gbm_absolute",
+      "n_rows": 19968,
+      "negative_share_raw": 0.002003205128205128,
+      "note": "",
+      "rmse": 257.09399128787163,
+      "sum_actual": 3049123.0,
+      "sum_forecast": 2262888.8211809997,
+      "wmape": 0.5016807520270582
+    }
+  ],
+  "run_id": "20260817T102841Z-4984d0"
+}
