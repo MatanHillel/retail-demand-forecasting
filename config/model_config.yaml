@@ -50,15 +50,15 @@ models:                                 # §19
     kind: hist_gradient_boosting
     loss: poisson
     primary: true
-    params: {learning_rate: 0.05, max_leaf_nodes: 31, max_iter: 300}
+    params: {learning_rate: 0.03, max_leaf_nodes: 31, max_iter: 200}
   M3_gbm_squared:
     kind: hist_gradient_boosting
     loss: squared_error
-    params: {learning_rate: 0.05, max_leaf_nodes: 31, max_iter: 300}
+    params: {learning_rate: 0.03, max_leaf_nodes: 15, max_iter: 200}
   M4_gbm_absolute:
     kind: hist_gradient_boosting
     loss: absolute_error
-    params: {learning_rate: 0.05, max_leaf_nodes: 31, max_iter: 300}
+    params: {learning_rate: 0.05, max_leaf_nodes: 15, max_iter: 100}
 
 tuning:                                 # §19 — small grid, rolling folds inside the training window
   grid:
