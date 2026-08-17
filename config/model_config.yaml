@@ -72,6 +72,14 @@ champion_gates:                         # §20 — executed by code, never by ha
   monthly_abs_bias_report_threshold: 0.25
   tie_wmape_points: 1.0
   meaningful_improvement_points: 2.0
+  similar_fill_rate_tolerance: 0.01     # 1 percentage point (§8 ambiguity resolution, US-22)
+  tie_break_order:                      # deterministic order when ties survive gate 3
+    - M2_gbm_poisson
+    - M3_gbm_squared
+    - M1_linear
+    - M4_gbm_absolute
+    - B2_ma3
+    - B1_last_month
 
 validation:                             # §37 step 5, §55 — feature-validation & leakage-test sample sizes
   lag_sample_rows: 500
