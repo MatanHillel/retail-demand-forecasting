@@ -50,7 +50,8 @@ config_snapshot()      -> dict                # five keys: cleaning_config, mode
 
 No threshold, month, seed or model parameter is ever written in code — it comes from these loaders
 (PRD §40). `ModelConfig` carries `seed`, `active_rule.k`, `features`, `split`, `backtest`, `models`,
-`tuning`, `champion_gates`.
+`tuning`, `champion_gates`, `validation` (`lag_sample_rows`, `permutation_products` — US-14 sample
+sizes).
 
 ## 3. `pipeline.run_context` — one run, its log and its safety net
 

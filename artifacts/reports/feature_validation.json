@@ -1,0 +1,72 @@
+{
+  "checks": [
+    {
+      "count": 0,
+      "examples": [],
+      "name": "target_present",
+      "passed": true
+    },
+    {
+      "count": 0,
+      "examples": [],
+      "name": "required_features_present",
+      "passed": true
+    },
+    {
+      "count": 0,
+      "examples": [],
+      "name": "no_nan_in_required",
+      "passed": true
+    },
+    {
+      "count": 0,
+      "examples": [],
+      "name": "origin_before_target",
+      "passed": true
+    },
+    {
+      "count": 0,
+      "examples": [],
+      "name": "active_rule",
+      "passed": true
+    },
+    {
+      "count": 0,
+      "examples": [],
+      "name": "target_range",
+      "passed": true
+    },
+    {
+      "count": 0,
+      "examples": [],
+      "name": "key_unique",
+      "passed": true
+    },
+    {
+      "count": 0,
+      "examples": [],
+      "name": "lag_recomputation",
+      "passed": true
+    },
+    {
+      "count": 0,
+      "examples": [],
+      "name": "permutation_future_months",
+      "passed": true
+    },
+    {
+      "count": 0,
+      "examples": [],
+      "name": "calendar_only_future_info",
+      "passed": true
+    }
+  ],
+  "passed": true,
+  "run_id": "20260817T081028Z-e986bd",
+  "sample_sizes": {
+    "lag_sample_rows": 500,
+    "permutation_products": 300
+  },
+  "seed": 42,
+  "timestamp": "2026-08-17T08:10:51.831602+00:00"
+}
