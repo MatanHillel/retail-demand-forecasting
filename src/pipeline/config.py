@@ -232,6 +232,13 @@ class ChampionGates(_Base):
         return self
 
 
+class ValidationParams(_Base):
+    """Sample sizes for feature validation & leakage tests (PRD §37 step 5, §55, US-14)."""
+
+    lag_sample_rows: int = Field(gt=0)
+    permutation_products: int = Field(gt=0)
+
+
 class ModelConfig(_Base):
     """Seed, features, split, candidates and champion gates (PRD §14, §17, §19–§22)."""
 
@@ -243,6 +250,7 @@ class ModelConfig(_Base):
     models: dict[str, ModelSpec]
     tuning: TuningConfig
     champion_gates: ChampionGates
+    validation: ValidationParams
 
     @field_validator("features")
     @classmethod

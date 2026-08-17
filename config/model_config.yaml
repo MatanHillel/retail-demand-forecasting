@@ -72,3 +72,7 @@ champion_gates:                         # §20 — executed by code, never by ha
   monthly_abs_bias_report_threshold: 0.25
   tie_wmape_points: 1.0
   meaningful_improvement_points: 2.0
+
+validation:                             # §37 step 5, §55 — feature-validation & leakage-test sample sizes
+  lag_sample_rows: 500
+  permutation_products: 300
