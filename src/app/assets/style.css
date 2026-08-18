@@ -1,0 +1,15 @@
+/* US-27 — light theming for the Streamlit shell. Colours come from :root custom properties
+   injected by app.components.theme.apply_theme(), which reads pipeline.eda.style.ABC_COLORS
+   so this file never hard-codes a colour that could drift from the EDA figures. */
+
+[data-testid="stMetricValue"] {
+  font-weight: 600;
+}
+
+[data-testid="stSidebar"] {
+  min-width: 260px;
+}
+
+.abc-a { color: var(--abc-a); }
+.abc-b { color: var(--abc-b); }
+.abc-c { color: var(--abc-c); }
