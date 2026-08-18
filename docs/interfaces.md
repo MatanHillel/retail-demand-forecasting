@@ -520,7 +520,8 @@ operational_sigma(backtest_df, abc_train_df, latest_df, champion, policy_cfg) ->
 build_inventory_plan(latest_df, sigma_df, policy_cfg, ctx, *, panel_df, abc_train_df,
                      features_df, cfg, origin=None) -> pd.DataFrame
 sanity_report(plan, latest, policy_cfg) -> str
-run_latest_forecast(cfg, ctx) -> dict                       # the Flow step-8 entry point
+run_latest_forecast(cfg, ctx, *, panel_df=None, train_features_df=None,
+                    backtest_df=None, abc_train_df=None) -> dict   # the Flow step-8 entry point
 run(argv=None) -> int                                       # python -m pipeline.latest_forecast
 ```
 
@@ -587,9 +588,11 @@ Rules this module adds to §6:
 * **The two formulas come from `pipeline.inventory`.** `safety_stock` and `target_inventory` are
   imported, never restated — one definition of §25 and §28 for the hold-out simulation and the
   operational plan alike.
-* **`run_latest_forecast` reads its four inputs from the canonical `paths.*` locations**, which is
-  correct standalone (`staging=False`) and wrong under the Flow: US-33 step 8 must hand in the frames
-  the producing steps returned (§6 rule 7).
+* **`run_latest_forecast` reads its four inputs from the canonical `paths.*` locations only when no
+  frame is injected** — correct standalone (`staging=False`), wrong under the Flow. US-31 added the
+  keyword-only injection parameters (`panel_df`, `train_features_df`, `backtest_df`,
+  `abc_train_df`; all four together or none — mixing raises `ValueError`), and Flow step 8 passes
+  the frames its own steps produced (§6 rule 7).
 
 ---
 
@@ -658,3 +661,69 @@ Rules this module adds to §6:
 * **No quarterly model artifact exists under `artifacts/models/`** — a repo-hygiene property, not a
   per-run check: under the Flow the run's own files are not in `artifacts/models/` until promotion
   anyway (§6 rule 7), and this module writes nothing there in any mode.
+
+---
+
+## 13. `flow` — the CrewAI Flow, ten steps end to end (US-31)
+
+```python
+# flow.state
+class ValidationFlags(BaseModel)                 # raw_schema/contract/features/leakage/artifacts
+class FlowState(BaseModel)                       # run_id, started_at, mode, data, artifact_paths,
+                                                 # validation, metrics, champion, errors, status,
+                                                 # current_step — every field defaulted
+
+# flow.steps  (no crewai import — the AC grep enforces it)
+@dataclass FlowData                              # in-memory DataFrame carrier between steps
+REQUIRED_FLOW_ARTIFACTS: tuple[Path, ...]        # §41's eight + backtest/latest/inventory csvs
+validation_report_path(ctx) -> Path              # canonical location rebased onto ctx.base_dir
+dataset_intake(state, ctx, data) -> FlowState    # …and one function per §37 step, same shape:
+data_analyst_work / contract_validation / data_scientist_work / feature_validation /
+training_and_backtest / evaluation_and_champion / inventory_policy_calibration /
+artifact_validation / publish
+
+# flow.main  (the only crewai import under src/flow/)
+FAIL = "fail"; INTAKE_OK; CONTRACT_OK; FEATURES_OK; ARTIFACTS_OK   # router labels
+class RetailForecastFlow(Flow[FlowState]):
+    def __init__(self, ctx, *, raw_path=None, skip_tuning=False)
+run_flow(*, mode="no-llm", raw_path=None, skip_tuning=False,
+         base_dir=None) -> tuple[FlowState, RunContext]
+
+# pipeline.__main__  (imports flow.main inside main() only — §6 rule 10)
+main(argv=None) -> int      # python -m pipeline --no-llm [--skip-tuning] [--raw <path>|--sample]
+
+# added by US-31 to existing modules (backward compatible)
+pipeline.sigma.run_sigma(backtest_df, abc_train_df, cfg, ctx) -> (table, summary)
+pipeline.inventory.run_inventory_simulation(cfg, ctx, *, wide_df=None, sigma_df=None)
+```
+
+`run_flow` starts the context with `staging=True`, writes `run_log.json` immediately (an honest
+`status: "running"` on disk), kicks the Flow off and returns `(state, ctx)`. Success promotes via
+`ctx.promote()` — a "staged artifact was never written" warning is treated as a failure — then
+`discard_staging()` and `finish("success")`. Failure (any step) writes `validation_report.json`
+stamped with the run id, calls `finish("failed")` and never promotes (§39). Exit codes at the CLI:
+`0` success, `2` graceful validation stop (`FLOW STOPPED: …` on stderr), `1` unexpected.
+
+Rules this module adds to §6:
+
+* **Step 9 validates the STAGED paths** (`ctx.staging_dir / relative`), never the final ones — the
+  final locations hold the previous run's files until step 10 promotes (§6 rule 7). The required
+  list is `REQUIRED_FLOW_ARTIFACTS`, read from `pipeline.paths`, and the stop message is
+  `FLOW STOPPED: <name> was not generated`.
+* **crewai 0.86.0 swallows exceptions raised in `@listen` methods** (`Flow._execute_single_listener`
+  prints a traceback and `kickoff()` returns normally). `RetailForecastFlow._run` therefore catches
+  every step exception itself, records it on the state and the context, and the failure travels
+  through the state to the next `@router`, which returns `"fail"` into the single
+  `@listen("fail")` handler. Routers sit after steps 1, 3, 5 and 9; each router's continue label
+  is distinct because in 0.86.0 a router's returned string *replaces* its method-name trigger.
+  Details in `docs/flow.md`.
+* **The Flow's validation reports are written to `validation_report_path(ctx)`** — the canonical
+  `paths.VALIDATION_REPORT` rebased onto `ctx.base_dir` (identical in production, isolated under a
+  test `base_dir`). Both `run_log.json` and `validation_report.json` keep bypassing staging (§6
+  rule 2).
+* **Steps hand frames to each other through `FlowData`, never through `FlowState`** — the state is
+  JSON-serialisable and mirrors `ctx` (run id, data, champion, metrics, errors); `run_log.json` is
+  still written from the `RunContext` alone.
+* **`tune()` rewrites `config/model_config.yaml`** and clears the config cache; step 6 reloads
+  `load_model_config()` / `SplitSpec.load()` afterwards. `--skip-tuning` (tests, the CI sample run)
+  skips the call entirely so the repo config is never touched.
