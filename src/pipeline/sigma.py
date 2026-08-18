@@ -48,7 +48,13 @@ import numpy as np
 import pandas as pd
 
 from pipeline import paths
-from pipeline.config import MODEL_IDS, InventoryPolicy, load_inventory_policy, load_model_config
+from pipeline.config import (
+    MODEL_IDS,
+    InventoryPolicy,
+    ModelConfig,
+    load_inventory_policy,
+    load_model_config,
+)
 from pipeline.run_context import RunContext
 
 #: Column order of ``artifacts/forecasts/sigma_table.csv``.
@@ -297,6 +303,64 @@ def write_sigma_outputs(
 
 
 # --------------------------------------------------------------------------
+# run_sigma — the public entry point (Flow step 7 and the CLI both call this)
+# --------------------------------------------------------------------------
+def run_sigma(
+    backtest_df: pd.DataFrame,
+    abc_train_df: pd.DataFrame,
+    cfg: ModelConfig,
+    ctx: RunContext,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """σ for **every** candidate over the hold-out months, written through ``ctx.out()``.
+
+    DataFrame-in / DataFrame-out, so it is safe under the Flow's ``staging=True`` (the caller hands
+    in the frames its own steps produced — ``docs/interfaces.md`` §6 rule 7). Opens its own
+    ``ctx.step("sigma")``; returns ``(sigma_table, sigma_summary)``.
+    """
+    policy_cfg = load_inventory_policy()
+    eval_months = [
+        str(period)
+        for period in pd.period_range(
+            cfg.split.holdout_targets.start, cfg.split.holdout_targets.end, freq="M"
+        )
+    ]
+
+    with ctx.step("sigma"):
+        frames = [
+            sigma_table(backtest_df, abc_train_df, eval_months, model_id, policy_cfg)
+            for model_id in MODEL_IDS
+        ]
+        table = (
+            pd.concat(frames, ignore_index=True)
+            .sort_values(["model", "target_month", "stock_code"], kind="mergesort")
+            .reset_index(drop=True)
+        )
+        summary = sigma_summary(table, policy_cfg)
+
+        ctx.log_rows("sigma_table", before=len(table), removed=0, after=len(table))
+
+        write_sigma_outputs(table, summary, ctx)
+
+        zero_mad_count = int(table["zero_mad"].sum())
+        if zero_mad_count:
+            ctx.warn(
+                f"{zero_mad_count} row(s) have MAD == 0 (zero_mad=True); sigma recorded as 0 "
+                "with no extra fallback"
+            )
+
+        metrics = {}
+        for model_id, group in summary.groupby("model", sort=False):
+            metrics[model_id] = {
+                "share_product": float(group["share_product"].mean()),
+                "share_abc_group": float(group["share_abc_group"].mean()),
+                "share_global": float(group["share_global"].mean()),
+            }
+        ctx.record_metrics({"sigma": metrics})
+
+    return table, summary
+
+
+# --------------------------------------------------------------------------
 # CLI: python -m pipeline.sigma
 # --------------------------------------------------------------------------
 def _read_backtest(path: Path) -> pd.DataFrame:
@@ -324,48 +388,10 @@ def run() -> int:
                 )
 
         cfg = load_model_config()
-        policy_cfg = load_inventory_policy()
         backtest_df = _read_backtest(paths.BACKTEST_PREDICTIONS)
         abc_train_df = pd.read_csv(abc_path, dtype={"stock_code": "string"})
 
-        eval_months = [
-            str(period)
-            for period in pd.period_range(
-                cfg.split.holdout_targets.start, cfg.split.holdout_targets.end, freq="M"
-            )
-        ]
-
-        with ctx.step("sigma"):
-            frames = [
-                sigma_table(backtest_df, abc_train_df, eval_months, model_id, policy_cfg)
-                for model_id in MODEL_IDS
-            ]
-            table = (
-                pd.concat(frames, ignore_index=True)
-                .sort_values(["model", "target_month", "stock_code"], kind="mergesort")
-                .reset_index(drop=True)
-            )
-            summary = sigma_summary(table, policy_cfg)
-
-            ctx.log_rows("sigma_table", before=len(table), removed=0, after=len(table))
-
-            write_sigma_outputs(table, summary, ctx)
-
-            zero_mad_count = int(table["zero_mad"].sum())
-            if zero_mad_count:
-                ctx.warn(
-                    f"{zero_mad_count} row(s) have MAD == 0 (zero_mad=True); sigma recorded as 0 "
-                    "with no extra fallback"
-                )
-
-            metrics = {}
-            for model_id, group in summary.groupby("model", sort=False):
-                metrics[model_id] = {
-                    "share_product": float(group["share_product"].mean()),
-                    "share_abc_group": float(group["share_abc_group"].mean()),
-                    "share_global": float(group["share_global"].mean()),
-                }
-            ctx.record_metrics({"sigma": metrics})
+        _, summary = run_sigma(backtest_df, abc_train_df, cfg, ctx)
 
         for model_id, group in summary.groupby("model", sort=False):
             print(

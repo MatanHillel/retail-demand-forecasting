@@ -144,7 +144,11 @@ def run_eda(
 
     index = sorted(read_index(ctx).values(), key=lambda entry: int(str(entry["id"]).lstrip("E")))
     result = validate_index(index, ctx)
-    write_validation_report(result, run_id=ctx.run_id)
+    write_validation_report(
+        result,
+        ctx.base_dir / paths.VALIDATION_REPORT.relative_to(paths.PROJECT_ROOT),
+        run_id=ctx.run_id,
+    )
     if not result.passed:
         raise FlowValidationError(result)
 

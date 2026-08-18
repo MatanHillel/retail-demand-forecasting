@@ -467,7 +467,13 @@ def validate_simulation_inputs(
 # --------------------------------------------------------------------------
 # run_inventory_simulation — the public entry point (issue §2 / §8)
 # --------------------------------------------------------------------------
-def run_inventory_simulation(cfg: ModelConfig, ctx: RunContext) -> dict[str, pd.DataFrame]:
+def run_inventory_simulation(
+    cfg: ModelConfig,
+    ctx: RunContext,
+    *,
+    wide_df: pd.DataFrame | None = None,
+    sigma_df: pd.DataFrame | None = None,
+) -> dict[str, pd.DataFrame]:
     """Simulate both policies for every candidate model on the hold-out and write the three US-21
     artifacts.
 
@@ -475,37 +481,52 @@ def run_inventory_simulation(cfg: ModelConfig, ctx: RunContext) -> dict[str, pd.
     this step reads — z, z_options, the sigma hierarchy — lives in ``inventory_policy.yaml``
     (issue §3), so no field of ``cfg`` (:class:`~pipeline.config.ModelConfig`) is read.
 
-    Reads ``holdout_rows_all_models.csv`` (US-19) and ``sigma_table.csv`` (US-20) from their
-    canonical locations — safe standalone, where ``staging=False`` and both files are final. A
-    future Flow integration must instead pass in the DataFrames the producing steps returned:
-    under ``staging=True`` those files are still sitting in ``artifacts/_staging/<run_id>/`` while
-    the final paths hold the *previous* run's copies (``docs/interfaces.md`` §6 rule 7, issue §8).
+    Standalone (both keyword frames ``None``) it reads ``holdout_rows_all_models.csv`` (US-19) and
+    ``sigma_table.csv`` (US-20) from their canonical locations — safe there, where
+    ``staging=False`` and both files are final. The Flow (US-31 step 7) must instead pass in the
+    DataFrames the producing steps returned via ``wide_df`` / ``sigma_df`` (both together — mixing
+    is a ``ValueError``): under ``staging=True`` those files are still sitting in
+    ``artifacts/_staging/<run_id>/`` while the final paths hold the *previous* run's copies
+    (``docs/interfaces.md`` §6 rule 7, issue §8).
     """
     del cfg
     policy_cfg = load_inventory_policy()
 
-    wide_path = paths.HOLDOUT_ROWS_ALL_MODELS
-    sigma_path = paths.SIGMA_TABLE
-    for required in (wide_path, sigma_path):
-        if not required.is_file():
-            raise FileNotFoundError(
-                f"{required} not found. Run `python -m pipeline.evaluate` and "
-                "`python -m pipeline.sigma` first."
-            )
+    if (wide_df is None) != (sigma_df is None):
+        raise ValueError("pass wide_df and sigma_df together, or neither")
 
-    wide_df = pd.read_csv(
-        wide_path,
-        dtype={"stock_code": "string", "target_month": "string", "abc_class": "string"},
-    )
-    sigma_df = pd.read_csv(
-        sigma_path,
-        dtype={
-            "stock_code": "string",
-            "target_month": "string",
-            "model": "string",
-            "sigma_source": "string",
-        },
-    )
+    if wide_df is None or sigma_df is None:
+        wide_path = paths.HOLDOUT_ROWS_ALL_MODELS
+        sigma_path = paths.SIGMA_TABLE
+        for required in (wide_path, sigma_path):
+            if not required.is_file():
+                raise FileNotFoundError(
+                    f"{required} not found. Run `python -m pipeline.evaluate` and "
+                    "`python -m pipeline.sigma` first."
+                )
+
+        wide_df = pd.read_csv(
+            wide_path,
+            dtype={"stock_code": "string", "target_month": "string", "abc_class": "string"},
+        )
+        sigma_df = pd.read_csv(
+            sigma_path,
+            dtype={
+                "stock_code": "string",
+                "target_month": "string",
+                "model": "string",
+                "sigma_source": "string",
+            },
+        )
+    else:
+        # Normalise the injected frames to the same key dtypes the CSV reads above produce, so the
+        # merges inside build_simulation_rows behave identically in both call modes.
+        wide_df = wide_df.copy()
+        for column in ("stock_code", "target_month", "abc_class"):
+            wide_df[column] = wide_df[column].astype("string")
+        sigma_df = sigma_df.copy()
+        for column in ("stock_code", "target_month", "model", "sigma_source"):
+            sigma_df[column] = sigma_df[column].astype("string")
 
     rows_df, dropped = build_simulation_rows(wide_df, sigma_df, MODEL_IDS)
     ctx.log_rows(
@@ -523,7 +544,11 @@ def run_inventory_simulation(cfg: ModelConfig, ctx: RunContext) -> dict[str, pd.
         )
 
     validation = validate_simulation_inputs(rows_df, MODEL_IDS)
-    write_validation_report(validation, run_id=ctx.run_id)
+    write_validation_report(
+        validation,
+        ctx.base_dir / _repo_relative(paths.VALIDATION_REPORT),
+        run_id=ctx.run_id,
+    )
     if not validation.passed:
         raise FlowValidationError(validation)
 

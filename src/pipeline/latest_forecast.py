@@ -800,45 +800,67 @@ def sanity_report(plan: pd.DataFrame, latest: pd.DataFrame, policy_cfg: Inventor
 # --------------------------------------------------------------------------
 # run_latest_forecast — the public entry point (Flow step 8 calls this)
 # --------------------------------------------------------------------------
-def run_latest_forecast(cfg: ModelConfig, ctx: RunContext) -> dict[str, Any]:
+def run_latest_forecast(
+    cfg: ModelConfig,
+    ctx: RunContext,
+    *,
+    panel_df: pd.DataFrame | None = None,
+    train_features_df: pd.DataFrame | None = None,
+    backtest_df: pd.DataFrame | None = None,
+    abc_train_df: pd.DataFrame | None = None,
+) -> dict[str, Any]:
     """Refit the champion, forecast the operational month and write the inventory plan.
 
-    Reads ``clean_data.csv``, ``features.csv``, ``backtest_predictions.csv`` and ``abc_train.csv``
-    from their canonical locations — correct standalone, where ``staging=False`` and all four are
-    final. A future Flow integration (US-33 step 8) must instead hand in the frames the producing
-    steps returned: under ``staging=True`` those files sit in ``artifacts/_staging/<run_id>/`` while
-    the final paths still hold the previous run's copies (``docs/interfaces.md`` §6 rule 7).
+    Standalone (all four keyword frames ``None``) it reads ``clean_data.csv``, ``features.csv``,
+    ``backtest_predictions.csv`` and ``abc_train.csv`` from their canonical locations — correct
+    there, where ``staging=False`` and all four are final. The Flow (US-31 step 8) must instead
+    hand in the frames the producing steps returned (all four together — mixing is a
+    ``ValueError``): under ``staging=True`` those files sit in ``artifacts/_staging/<run_id>/``
+    while the final paths still hold the previous run's copies (``docs/interfaces.md`` §6 rule 7).
     """
     cleaning_cfg = load_cleaning_config()
     policy_cfg = load_inventory_policy()
 
-    abc_path = paths.EVAL_TABLES_DIR / "abc_train.csv"
-    required = (paths.CLEAN_DATA, paths.FEATURES, paths.BACKTEST_PREDICTIONS, abc_path)
-    for path in required:
-        if not path.is_file():
-            raise FileNotFoundError(
-                f"{path} not found. Run `python -m pipeline.panel`, `python -m pipeline.features`, "
-                "`python -m pipeline.backtest` and `python -m pipeline.split abc` first."
-            )
+    injected = (panel_df, train_features_df, backtest_df, abc_train_df)
+    if any(frame is None for frame in injected) and not all(frame is None for frame in injected):
+        raise ValueError(
+            "pass panel_df, train_features_df, backtest_df and abc_train_df together, or none"
+        )
+
+    if panel_df is None:
+        abc_path = paths.EVAL_TABLES_DIR / "abc_train.csv"
+        required = (paths.CLEAN_DATA, paths.FEATURES, paths.BACKTEST_PREDICTIONS, abc_path)
+        for path in required:
+            if not path.is_file():
+                raise FileNotFoundError(
+                    f"{path} not found. Run `python -m pipeline.panel`, "
+                    "`python -m pipeline.features`, `python -m pipeline.backtest` and "
+                    "`python -m pipeline.split abc` first."
+                )
+
+        panel = read_panel(paths.CLEAN_DATA)
+        train_features = pd.read_csv(
+            paths.FEATURES,
+            dtype={"stock_code": "string", "forecast_origin": "string", "target_month": "string"},
+        )
+        backtest = pd.read_csv(
+            paths.BACKTEST_PREDICTIONS,
+            dtype={
+                "stock_code": "string",
+                "forecast_origin": "string",
+                "target_month": "string",
+                "model": "string",
+            },
+        )
+        abc = pd.read_csv(abc_path, dtype={"stock_code": "string"})
+    else:
+        panel = panel_df
+        train_features = train_features_df
+        backtest = backtest_df
+        abc = abc_train_df
 
     decision = resolve_champion(ctx)
     champion = champion_id(decision)
-
-    panel = read_panel(paths.CLEAN_DATA)
-    train_features = pd.read_csv(
-        paths.FEATURES,
-        dtype={"stock_code": "string", "forecast_origin": "string", "target_month": "string"},
-    )
-    backtest = pd.read_csv(
-        paths.BACKTEST_PREDICTIONS,
-        dtype={
-            "stock_code": "string",
-            "forecast_origin": "string",
-            "target_month": "string",
-            "model": "string",
-        },
-    )
-    abc = pd.read_csv(abc_path, dtype={"stock_code": "string"})
 
     origin = operational_origin(cleaning_cfg)
     features = operational_features(panel, cfg, origin)
@@ -846,7 +868,11 @@ def run_latest_forecast(cfg: ModelConfig, ctx: RunContext) -> dict[str, Any]:
     validation = validate_operational_inputs(
         features, train_features, panel, origin, cfg, cleaning_cfg
     )
-    write_validation_report(validation, run_id=ctx.run_id)
+    write_validation_report(
+        validation,
+        ctx.base_dir / _repo_relative(paths.VALIDATION_REPORT),
+        run_id=ctx.run_id,
+    )
     if not validation.passed:
         raise FlowValidationError(validation)
 
