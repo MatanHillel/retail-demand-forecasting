@@ -67,10 +67,9 @@ def run_status_banner() -> RunStatusState:
 
 
 def _resolve_failure_reason(run_log: dict[str, Any]) -> FailureReason:
-    report = data_access.load_validation_report()
-    if report is not None and report.get("run_id") == run_log.get("run_id"):
-        if report.get("passed") is False:
-            return FailureReason("violations", violations=report.get("violations") or [])
+    report = data_access.load_validation_report_for_run(run_log.get("run_id"))
+    if report is not None and report.get("passed") is False:
+        return FailureReason("violations", violations=report.get("violations") or [])
 
     errors = run_log.get("errors") or []
     if errors:

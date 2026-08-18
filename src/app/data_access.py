@@ -125,3 +125,39 @@ def load_contract() -> dict:
 
 def load_dq_findings() -> dict:
     return _read_json(*_key(_require(paths.DATA_QUALITY_FINDINGS, "data_quality_findings.json")))
+
+
+def load_feature_validation() -> dict:
+    return _read_json(*_key(_require(paths.FEATURE_VALIDATION, "feature_validation.json")))
+
+
+def load_validation_report_for_run(run_id: str | None) -> dict | None:
+    """The parsed ``validation_report.json`` only when its ``run_id`` matches ``run_id``.
+
+    The report is written on success *and* on failure and is never cleared between runs (§39),
+    so it frequently belongs to an *older* run than the one being displayed. Returns ``None``
+    when the report is absent, ``run_id`` is ``None``, or the ids differ — the single
+    implementation of the run-id-match rule (docs/interfaces.md §3 note on
+    ``validation_report.json``), reused by both the run-status banner and Screen 6.
+    """
+    if run_id is None:
+        return None
+    report = load_validation_report()
+    if report is None or report.get("run_id") != run_id:
+        return None
+    return report
+
+
+def list_run_history() -> list[dict]:
+    """Every archived run log under ``logs/run_*.json`` (US-30, PRD §33.6), newest first.
+
+    ``logs/`` is git-ignored, so this reflects only runs that happened on this machine. Each
+    archive is the full ``run_log.json`` schema — a run killed before ``finish()`` still appears,
+    with ``status: "running"`` and ``finished_at: null``.
+    """
+    entries = [
+        json.loads(path.read_text(encoding="utf-8"))
+        for path in sorted(paths.LOGS_DIR.glob("run_*.json"))
+    ]
+    entries.sort(key=lambda entry: entry.get("started_at") or "", reverse=True)
+    return entries
