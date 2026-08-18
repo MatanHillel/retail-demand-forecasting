@@ -15,16 +15,21 @@ rebases the *real*, unpatched ``paths.RUN_LOG`` onto ``base_dir`` to find where 
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
 
 import streamlit as st
 from streamlit.testing.v1 import AppTest
 
 from pipeline import paths
+from pipeline.config import load_inventory_policy
 from pipeline.run_context import RunContext, close_log_handlers
 from pipeline.validation import ValidationResult, Violation, write_validation_report
 
-HOME = str(Path(__file__).resolve().parents[1] / "src" / "app" / "Home.py")
+APP_DIR = Path(__file__).resolve().parents[1] / "src" / "app"
+HOME = str(APP_DIR / "Home.py")
+PRODUCT_FORECASTS = str(APP_DIR / "pages" / "2_Product_Forecasts.py")
+PRODUCT_DETAIL = str(APP_DIR / "pages" / "3_Product_Detail.py")
 
 
 def _make_run_context(tmp_path, *, status, errors=None) -> RunContext:
@@ -210,3 +215,97 @@ class TestRunStatusBanner:
         assert not at.exception
         assert "python -m pipeline --no-llm" in _text(at)
         _assert_no_kpi_tiles(at)
+
+
+class TestProductForecastsScreen:
+    """Screen 2 — Product Forecasts (US-28, PRD §33.2). Runs against the real artifacts."""
+
+    def setup_method(self) -> None:
+        st.cache_data.clear()
+
+    def teardown_method(self) -> None:
+        st.cache_data.clear()
+
+    def test_renders_against_real_artifacts(self) -> None:
+        at = AppTest.from_file(PRODUCT_FORECASTS, default_timeout=30).run()
+        assert not at.exception
+        assert len(at.dataframe) == 1
+        assert at.get("download_button")
+
+    def test_search_filter_reduces_rows(self) -> None:
+        at = AppTest.from_file(PRODUCT_FORECASTS, default_timeout=30).run()
+        unfiltered_rows = len(at.dataframe[0].value)
+
+        at.text_input[0].set_value("10080").run()
+
+        assert not at.exception
+        filtered_rows = len(at.dataframe[0].value)
+        assert 0 < filtered_rows < unfiltered_rows
+
+    def test_status_filter_reduces_rows(self) -> None:
+        at = AppTest.from_file(PRODUCT_FORECASTS, default_timeout=30).run()
+        unfiltered_rows = len(at.dataframe[0].value)
+        status_multiselect = next(m for m in at.multiselect if m.label == "Status")
+
+        status_multiselect.set_value([status_multiselect.options[0]]).run()
+
+        assert not at.exception
+        filtered_rows = len(at.dataframe[0].value)
+        assert filtered_rows < unfiltered_rows
+
+    def test_download_button_exists(self) -> None:
+        at = AppTest.from_file(PRODUCT_FORECASTS, default_timeout=30).run()
+        download_buttons = at.get("download_button")
+        assert len(download_buttons) == 1
+        assert download_buttons[0].label == "Download CSV"
+        assert download_buttons[0].proto.url.endswith(".csv")
+
+
+class TestProductDetailScreen:
+    """Screen 3 — Product Detail (US-28, PRD §33.3). Runs against the real artifacts."""
+
+    def setup_method(self) -> None:
+        st.cache_data.clear()
+
+    def teardown_method(self) -> None:
+        st.cache_data.clear()
+
+    def test_renders_chart_and_recommendation_sentence(self) -> None:
+        at = AppTest.from_file(PRODUCT_DETAIL, default_timeout=30).run()
+
+        assert not at.exception
+        assert at.get("imgs")
+        sentences = [str(m.value) for m in at.markdown if "expected to sell" in str(m.value)]
+        assert sentences
+        assert "Recommended Target Inventory" in sentences[0]
+
+    def test_partial_month_is_labelled(self) -> None:
+        at = AppTest.from_file(PRODUCT_DETAIL, default_timeout=30).run()
+
+        assert not at.exception
+        assert "partial" in _text(at)
+
+    def test_zslider_whatif_matches_formula(self) -> None:
+        at = AppTest.from_file(PRODUCT_DETAIL, default_timeout=30).run()
+        policy = load_inventory_policy()
+        other_z = next(z for z in policy.z_options if not math.isclose(z, policy.z))
+
+        at.select_slider[0].set_value(other_z).run()
+
+        assert not at.exception
+        sentences = [str(m.value) for m in at.markdown if "expected to sell" in str(m.value)]
+        assert sentences
+        forecast = float(sentences[0].split("**")[3])
+        sigma = float(sentences[0].split("σ = ")[1].split(",")[0])
+        expected_target = math.ceil(max(0.0, forecast + other_z * sigma))
+        assert f"**{expected_target}** units." in sentences[0]
+
+    def test_missing_backtest_artifact_degrades_gracefully(self, monkeypatch) -> None:
+        monkeypatch.setattr(paths, "BACKTEST_PREDICTIONS", paths.BACKTEST_PREDICTIONS.with_name(
+            "does_not_exist.csv"
+        ))
+
+        at = AppTest.from_file(PRODUCT_DETAIL, default_timeout=30).run()
+
+        assert not at.exception
+        assert "unavailable" in _text(at) or "cannot be shown" in _text(at)
