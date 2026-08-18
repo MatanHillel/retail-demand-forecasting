@@ -248,6 +248,61 @@ class ValidationParams(_Base):
     permutation_products: int = Field(gt=0)
 
 
+#: The pricing entry used for any model id the table does not name explicitly.
+DEFAULT_PRICING_KEY = "default"
+
+
+class LlmPricing(_Base):
+    """What one thousand tokens cost with one model, in USD (PRD §47).
+
+    A price is a number, so it lives in ``model_config.yaml`` and never in code (PRD §40). Three
+    rates because providers bill a cached prompt prefix at a discount: reading
+    ``cached_prompt_tokens`` back from the crew's usage and pricing it here is what makes the
+    §47 prompt-caching claim measurable rather than decorative.
+    """
+
+    prompt_usd_per_1k: float = Field(ge=0)
+    cached_prompt_usd_per_1k: float = Field(ge=0)
+    completion_usd_per_1k: float = Field(ge=0)
+
+
+class LlmConfig(_Base):
+    """LLM-mode settings: which env var names the model, what a run may cost, how tokens price.
+
+    Read only in LLM mode — a ``--no-llm`` run parses this block (every run parses the whole file)
+    but never acts on it, and never imports an LLM class (PRD §37).
+
+    ``model_env_var`` is the *name* of an environment variable, never a credential:
+    :func:`config_snapshot` is serialised into ``artifacts/run_log.json`` verbatim and
+    ``artifacts/`` is committed (``docs/interfaces.md`` §6 rule 11). The same rule governs
+    ``extra_params``, which is handed straight to ``crewai.LLM(**extra_params)`` — it exists so a
+    provider that needs an explicit prompt-caching header can be configured without a code change.
+    """
+
+    # ``model_env_var`` and ``model_config`` would both fall in pydantic's protected ``model_``
+    # namespace, so it is opened here; the rest of ``_Base`` (forbid unknown keys, frozen) stands.
+    model_config = ConfigDict(extra="forbid", frozen=True, protected_namespaces=())
+
+    model_env_var: str = Field(min_length=1)
+    max_cost_usd: float = Field(gt=0)
+    extra_params: dict[str, Any] = Field(default_factory=dict)
+    pricing: dict[str, LlmPricing]
+
+    @field_validator("pricing")
+    @classmethod
+    def _has_a_default(cls, value: dict[str, LlmPricing]) -> dict[str, LlmPricing]:
+        if DEFAULT_PRICING_KEY not in value:
+            raise ValueError(
+                f"llm.pricing must contain a {DEFAULT_PRICING_KEY!r} entry — it is what prices "
+                "a model id the table does not name"
+            )
+        return value
+
+    def price_of(self, model_id: str) -> LlmPricing:
+        """Pricing for ``model_id``, falling back to the mandatory ``default`` entry."""
+        return self.pricing.get(model_id, self.pricing[DEFAULT_PRICING_KEY])
+
+
 class ModelConfig(_Base):
     """Seed, features, split, candidates and champion gates (PRD §14, §17, §19–§22)."""
 
@@ -260,6 +315,7 @@ class ModelConfig(_Base):
     tuning: TuningConfig
     champion_gates: ChampionGates
     validation: ValidationParams
+    llm: LlmConfig
 
     @field_validator("features")
     @classmethod

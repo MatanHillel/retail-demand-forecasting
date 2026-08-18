@@ -64,10 +64,10 @@ from pipeline.validation import (
 #: the head of a ranking, not the whole frame — the cheapest prompt that still supports a claim.
 TABLE_ROW_CAP = 20
 
-#: Filename of the agent-written data-quality review. It has no constant in :mod:`pipeline.paths`
-#: because no deterministic step writes it, so it is defined here and always resolved through
-#: ``ctx.out()`` (§8 of the issue).
-DATA_QUALITY_REVIEW_FILENAME = "data_quality_review.md"
+#: Filename of the agent-written data-quality review, kept as a name for backwards compatibility;
+#: the location itself is :data:`pipeline.paths.DATA_QUALITY_REVIEW` (added by US-33 §8 so the
+#: Flow can guard and re-validate the file without rebuilding its path by hand).
+DATA_QUALITY_REVIEW_FILENAME = paths.DATA_QUALITY_REVIEW.name
 
 #: Step names recorded in ``run_log.json``, one per tool call, prefixed so a crew run's steps are
 #: distinguishable from the Flow's own.
@@ -76,7 +76,7 @@ STEP_PREFIX = "crew_data_analyst"
 
 def review_path() -> Path:
     """Canonical location of ``data_quality_review.md`` (repo-absolute, like every other path)."""
-    return paths.REPORTS_DIR / DATA_QUALITY_REVIEW_FILENAME
+    return paths.DATA_QUALITY_REVIEW
 
 
 def relative_path(path: Path) -> Path:

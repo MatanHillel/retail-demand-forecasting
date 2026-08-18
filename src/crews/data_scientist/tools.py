@@ -75,6 +75,34 @@ TABLE_ROW_CAP = 20
 #: from the Flow's own.
 STEP_PREFIX = "crew_data_scientist"
 
+#: The tools the narrative task needs, and the only ones a ``narrative_only`` crew is given
+#: (US-33): three readers and the two guarded writers. Everything else recomputes a number the
+#: Flow has already computed, which is exactly what narrative-only mode exists to avoid.
+NARRATIVE_TOOL_NAMES: tuple[str, ...] = (
+    "read_eval_table_tool",
+    "read_champion_decision_tool",
+    "read_model_meta_tool",
+    "write_evaluation_narrative_tool",
+    "write_model_card_narrative_tool",
+)
+
+#: Table name -> the file it is read back from when the state is hydrated instead of computed
+#: (US-33 narrative-only mode). Every entry is a table one of the tools would have put on
+#: :attr:`DataScientistState.tables`, written by the very same pipeline function the Flow's
+#: steps 6-8 called — so hydrating changes where a number is read from, never what it is.
+HYDRATED_TABLES: dict[str, Path] = {
+    "holdout_metrics_overall": paths.EVAL_TABLES_DIR / "holdout_metrics_overall.csv",
+    "holdout_metrics_by_month": paths.EVAL_TABLES_DIR / "holdout_metrics_by_month.csv",
+    "holdout_metrics_by_abc": paths.EVAL_TABLES_DIR / "holdout_metrics_by_abc.csv",
+    "improvement_vs_b2": paths.EVAL_TABLES_DIR / "improvement_vs_b2.csv",
+    "backtest_consistency": paths.EVAL_TABLES_DIR / "backtest_consistency.csv",
+    "backtest_by_origin": paths.EVAL_TABLES_DIR / "backtest_by_origin.csv",
+    "sigma_summary": paths.EVAL_TABLES_DIR / "sigma_summary.csv",
+    "excess_concentration": paths.EXCESS_CONCENTRATION,
+    "inventory_kpis": paths.INVENTORY_KPIS,
+    "quarterly_metrics": paths.QUARTERLY_METRICS,
+}
+
 
 def relative_path(path: Path) -> Path:
     """Repo-relative form — the only form that is safe for ``ctx.out()`` (§6 rule 12)."""
@@ -174,6 +202,76 @@ class DataScientistState:
             if source.is_file():
                 tables[key] = json.loads(source.read_text(encoding="utf-8"))
         return tables
+
+
+def hydrate_for_narrative(ctx: RunContext, state: DataScientistState) -> list[str]:
+    """Fill ``state`` from the artifacts already on disk, for a narrative-only crew (US-33).
+
+    In narrative-only mode the deterministic tools are not run — the Flow's steps 4-8 already ran
+    the identical pipeline functions — so nothing has populated the state the narrative tools
+    read: ``write_evaluation_narrative_tool`` would refuse every draft with "run
+    write_reports_tool first", and ``read_eval_table_tool`` would report no table by any name.
+    This reads the same tables back from **this run's staged copies** (``resolve_read``, never the
+    final locations, which still hold the previous run's files — ``docs/interfaces.md`` §6 rule 7)
+    and puts them where the tools expect them.
+
+    The distinction that matters: this changes where a number is *read from*, never what it is.
+    Every file here was written by the same ``pipeline`` function a ``--no-llm`` run calls, so a
+    narrative checked against a hydrated table is checked against exactly the numbers the
+    deterministic run produced (§38).
+
+    Returns the names of the sources that were missing, so the caller can decide whether the
+    narrative step can run at all. An empty list means the state is complete.
+    """
+    missing: list[str] = []
+
+    for name, canonical in HYDRATED_TABLES.items():
+        source = resolve_read(ctx, relative_path(canonical))
+        if not source.is_file():
+            missing.append(name)
+            continue
+        state.tables[name] = pd.read_csv(source)
+
+    decision_path = resolve_read(ctx, relative_path(paths.CHAMPION_DECISION))
+    if decision_path.is_file():
+        state.decision = ChampionDecision.model_validate(
+            json.loads(decision_path.read_text(encoding="utf-8"))
+        )
+    else:
+        missing.append("champion_decision")
+
+    contract_path = resolve_read(ctx, relative_path(paths.DATASET_CONTRACT))
+    if contract_path.is_file():
+        state.contract = json.loads(contract_path.read_text(encoding="utf-8"))
+    else:
+        missing.append("dataset_contract")
+
+    # ``read_model_meta_tool`` gates on ``state.latest`` because latest_forecast_tool is what
+    # writes model_meta.json; here the Flow's step 8 wrote it, so the gate is opened explicitly
+    # and the tool goes on to read the file itself.
+    meta_path = resolve_read(ctx, relative_path(paths.MODEL_META))
+    if meta_path.is_file():
+        state.latest = {"hydrated_from": relative_path(paths.MODEL_META).as_posix()}
+    else:
+        missing.append("model_meta")
+
+    for attribute, canonical in (
+        ("deterministic_evaluation_report", paths.EVALUATION_REPORT),
+        ("deterministic_model_card", paths.MODEL_CARD),
+    ):
+        source = resolve_read(ctx, relative_path(canonical))
+        if source.is_file():
+            setattr(state, attribute, source.read_text(encoding="utf-8"))
+        else:
+            missing.append(canonical.name)
+
+    # The two deterministic reports exist and their text is now the fallback every rewrite is
+    # judged against — which is precisely what ``reports_written`` gates.
+    state.reports_written = (
+        state.deterministic_evaluation_report is not None
+        and state.deterministic_model_card is not None
+    )
+    return missing
 
 
 # --------------------------------------------------------------------------
@@ -404,6 +502,12 @@ class DataScientistToolset:
     def tools(self) -> list[BaseTool]:
         """Every tool, in agent order."""
         return [tool for group in self.by_agent.values() for tool in group]
+
+    @property
+    def narrative_tools(self) -> list[BaseTool]:
+        """Only the tools :data:`NARRATIVE_TOOL_NAMES` names — a narrative-only crew's whole kit."""
+        by_name = {tool.name: tool for tool in self.tools}
+        return [by_name[name] for name in NARRATIVE_TOOL_NAMES]
 
     def _step(self, name: str) -> Any:
         return self.ctx.step(f"{STEP_PREFIX}:{name}")

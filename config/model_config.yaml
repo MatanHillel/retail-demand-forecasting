@@ -84,3 +84,36 @@ champion_gates:                         # §20 — executed by code, never by ha
 validation:                             # §37 step 5, §55 — feature-validation & leakage-test sample sizes
   lag_sample_rows: 500
   permutation_products: 300
+
+llm:                                    # §47 — LLM mode only; --no-llm never reads this block
+  model_env_var: CREWAI_LLM_MODEL       # NAME of the env var holding the LiteLLM model id.
+                                        # Never a key or a token: config_snapshot() is written
+                                        # into artifacts/run_log.json verbatim, and artifacts/
+                                        # is committed (docs/interfaces.md §6 rule 11).
+  max_cost_usd: 2.0                     # hard cap; exceeding it aborts the narrative step, not
+                                        # the run (US-33 §8)
+  extra_params: {}                      # passed straight to crewai.LLM(**extra_params) -> litellm,
+                                        # the hook for provider prompt-caching headers on
+                                        # providers that need one. Never put a credential here.
+  pricing:                              # USD per 1000 tokens, by LiteLLM model id (§40 — a price
+                                        # is a number, so it lives here, never in code)
+    default:                            # used for any model id not listed below
+      prompt_usd_per_1k: 0.00015
+      cached_prompt_usd_per_1k: 0.000075
+      completion_usd_per_1k: 0.0006
+    gpt-4o-mini:
+      prompt_usd_per_1k: 0.00015
+      cached_prompt_usd_per_1k: 0.000075
+      completion_usd_per_1k: 0.0006
+    gpt-4o:
+      prompt_usd_per_1k: 0.0025
+      cached_prompt_usd_per_1k: 0.00125
+      completion_usd_per_1k: 0.01
+    claude-sonnet-4-5:
+      prompt_usd_per_1k: 0.003
+      cached_prompt_usd_per_1k: 0.0003
+      completion_usd_per_1k: 0.015
+    claude-haiku-4-5:
+      prompt_usd_per_1k: 0.001
+      cached_prompt_usd_per_1k: 0.0001
+      completion_usd_per_1k: 0.005

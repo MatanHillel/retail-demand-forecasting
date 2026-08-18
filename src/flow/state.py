@@ -47,6 +47,11 @@ class FlowState(BaseModel):
     validation: ValidationFlags = Field(default_factory=ValidationFlags)
     #: Mirrored from ``ctx.metrics`` at the end of the run.
     metrics: dict[str, Any] = Field(default_factory=dict)
+    #: LLM mode only (US-33): ``{crew1_status, crew2_status, model, tokens, cost_usd,
+    #: max_cost_usd, narrative_accepted, guard_restored}``. Empty in ``--no-llm`` mode. The same
+    #: dict reaches ``run_log.json`` as ``metrics.llm`` — ``RunContext`` is ``extra="forbid"``
+    #: with a published field list, so there is no top-level ``llm`` key to write it to.
+    llm: dict[str, Any] = Field(default_factory=dict)
     #: The §20 decision, mirrored from ``ctx.champion`` (set by ``select_champion``).
     champion: dict[str, Any] | None = None
     #: Mirrored from ``ctx.errors`` — ``{step, type, message, traceback}`` per failure.

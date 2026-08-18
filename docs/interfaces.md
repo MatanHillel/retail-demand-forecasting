@@ -3,7 +3,8 @@
 **Status:** generated from the merged code of US-00, US-01 and US-02, extended with the US-05 panel
 surface (branch `matan/pr1-us03-05-data-pipeline`), the US-06 EDA foundations (branch
 `matan/pr2-us06-08`), the US-13 feature surface (§10), the US-23 operational-forecast surface
-(§11) and the US-24 quarterly-aggregation surface (§12).
+(§11), the US-24 quarterly-aggregation surface (§12), the US-31/US-32 Flow (§13) and the US-33
+LLM mode (§14).
 **Rule:** every issue that uses these modules links to this file instead of restating the API. If an
 issue's prompt and this file disagree, **this file wins** — it is derived from code that exists, the
 issue text was written before the code did.
@@ -30,6 +31,7 @@ Nothing in the project builds a path by hand. Import the constant.
 | `candidate_model(model_id)` | `artifacts/models/<model_id>.joblib` |
 | `BACKTEST_PREDICTIONS`, `LATEST_FORECAST`, `INVENTORY_PLAN`, `SIGMA_TABLE`, `INVENTORY_KPIS`, `HOLDOUT_SIMULATION_ROWS`, `QUARTERLY_FORECAST` | `artifacts/forecasts/…` |
 | `EDA_REPORT` ★, `INSIGHTS` ★, `EVALUATION_REPORT` ★, `MODEL_CARD` ★ | `artifacts/reports/…` |
+| `DATA_QUALITY_REVIEW` | `artifacts/reports/data_quality_review.md` — Crew 1's review (US-33 §8) |
 | `CHAMPION_DECISION`, `DATA_QUALITY_FINDINGS`, `FEATURE_VALIDATION` | `artifacts/reports/…` |
 | `QUARTERLY_METRICS`, `QUARTERLY_LIMITATION` | `artifacts/reports/evaluation_tables/…` |
 | `DATASET_CONTRACT` ★ | `artifacts/contracts/dataset_contract.json` |
@@ -54,7 +56,25 @@ config_snapshot()      -> dict                # five keys: cleaning_config, mode
 No threshold, month, seed or model parameter is ever written in code — it comes from these loaders
 (PRD §40). `ModelConfig` carries `seed`, `active_rule.k`, `features`, `split`, `backtest`, `models`,
 `tuning`, `champion_gates`, `validation` (`lag_sample_rows`, `permutation_products` — US-14 sample
-sizes).
+sizes) and `llm` (US-33).
+
+```python
+class LlmPricing(_Base)      # prompt_usd_per_1k, cached_prompt_usd_per_1k, completion_usd_per_1k
+class LlmConfig(_Base)       # model_env_var, max_cost_usd, extra_params, pricing
+    .price_of(model_id) -> LlmPricing        # falls back to the mandatory "default" entry
+DEFAULT_PRICING_KEY = "default"
+```
+
+`llm` is read **only in LLM mode** — a `--no-llm` run parses it like the rest of the file and then
+ignores it. Three things about it are load-bearing:
+
+* **`model_env_var` is the NAME of an environment variable, never a credential**, and neither is
+  anything in `extra_params`: `config_snapshot()` is serialised into `run_log.json` verbatim and
+  `artifacts/` is committed (§6 rule 11).
+* **`pricing` must contain a `default` key** (a validator enforces it) — it is what prices a model
+  id the table does not name. A price is a number, so it lives in YAML, never in code (§40).
+* **`LlmConfig` opens pydantic's protected `model_` namespace** (`protected_namespaces=()`), which
+  `model_env_var` would otherwise collide with. `extra="forbid"` and `frozen=True` still hold.
 
 ## 3. `pipeline.run_context` — one run, its log and its safety net
 
@@ -345,22 +365,29 @@ Rules for callers:
 
 ---
 
-## 9. `crews.common` & `crews.data_analyst` — the crew layer (US-12)
+## 9. `crews.environment`, `crews.common` & the two crews — the crew layer (US-12, US-26, US-33)
 
 Numbered after §8 for the same reason §7 was: the §6 rule numbers are cited from open issues and
 must not shift. **CrewAI may be imported here and nowhere else** (§6 rule 10) — that one-way
 direction is what keeps `--no-llm` runs free of any LLM import.
 
 ```python
-# crews.common — shared by both crews (US-12 here, US-26 next)
+# crews.environment — the crew module that imports NO CrewAI (US-33)
 API_KEY_VARIABLES: tuple[str, ...]      # ("OPENAI_API_KEY", "ANTHROPIC_API_KEY"), tried in order
-MODEL_VARIABLE: str                     # "CREWAI_LLM_MODEL"
-DEFAULT_MODEL, LLM_TEMPERATURE, NO_API_KEY_MESSAGE
+MODEL_VARIABLE: str                     # fallback name; llm.model_env_var is what is in force
+DEFAULT_MODEL, NO_API_KEY_MESSAGE
 MissingAPIKeyError(RuntimeError)
 api_key_variable() -> str | None        # the variable NAME; the value is never returned
 require_api_key() -> str                # raises MissingAPIKeyError
+model_variable() -> str                 # model_config.yaml -> llm.model_env_var
 llm_model_name() -> str
-make_llm(*, seed=None, temperature=0.0) -> crewai.LLM
+estimate_cost_usd(*, prompt_tokens=0, cached_prompt_tokens=0, completion_tokens=0,
+                  model=None) -> float  # priced from llm.pricing; cached tokens are a SUBSET
+                                        # of prompt_tokens and are billed at the cached rate
+
+# crews.common — shared by both crews; re-exports every name above unchanged
+LLM_TEMPERATURE, TOKEN_COUNTERS         # TOKEN_COUNTERS includes cached_prompt_tokens
+make_llm(*, seed=None, temperature=0.0) -> crewai.LLM   # + llm.extra_params, for caching headers
 GuardDecision(label, accepted, text, checked, unmatched); .message -> str
 NarrativeGuard(label, tables, fallback)
     .review(candidate) -> GuardDecision                  # pure: decides, writes nothing
@@ -377,9 +404,25 @@ verify_outputs(ctx) -> list[str]                         # required outputs not 
 AGENT_ORDER, TASK_ORDER, REQUIRED_OUTPUTS, METRICS_LABEL
 relative_path(path) -> Path                              # repo-relative, for ctx.out()
 resolve_read(ctx, relative) -> Path                      # staged copy first, final second
-review_path() -> Path                                    # artifacts/reports/data_quality_review.md
+review_path() -> Path                                    # == paths.DATA_QUALITY_REVIEW
 deterministic_review(state) -> str
+
+# crews.data_scientist (US-26, extended by US-33)
+run_data_scientist_crew(ctx, *, narrative_only=False) -> dict
+build_crew(ctx, llm=None, *, narrative_only=False) -> Crew
+DataScientistCrew(ctx, llm=None, *, narrative_only=False)   # .missing_sources, .agent_order,
+                                                            # .task_order
+verify_outputs(ctx, *, narrative_only=False) -> list[str]
+hydrate_for_narrative(ctx, state) -> list[str]           # fills the state from staged artifacts
+NARRATIVE_TASK, NARRATIVE_AGENT, NARRATIVE_TOOL_NAMES, HYDRATED_TABLES
 ```
+
+`narrative_only=True` is how the Flow kicks crew 2 off (US-33): the T3-narrative task alone, three
+reading tools and the two guarded writers, over a `DataScientistState` **hydrated** from this run's
+staged tables rather than recomputed. Hydration changes where a number is read from, never what it
+is — every file it reads was written by the same `pipeline` function a `--no-llm` run calls. A
+missing hydration source raises rather than producing a narrative checked against a partial table
+set.
 
 Rules these modules add to §6:
 
@@ -748,3 +791,74 @@ Rules this module adds to §6:
   `run_id=ctx.run_id` — a report with no violations tells the app a run failed for no stated
   reason, which is worse than the previous run's report a reader correctly ignores on the
   run-id mismatch (§6 rule 6).
+
+---
+
+## 14. `flow.llm_mode` — the two crew kickoffs (US-33)
+
+```python
+CREW1_STEP = "data_analyst_crew_review"          # after step 3, before step 4
+CREW2_STEP = "data_scientist_crew_review"        # after step 9, before step 10
+NARRATIVE_VALIDATION_STEP = "narrative_artifact_validation"
+STATUS_NOT_RUN | STATUS_COMPLETED | STATUS_COST_CAPPED | STATUS_FAILED
+GUARDED_ARTIFACTS: tuple[Path, ...]              # + every file in EVAL_TABLES_DIR, globbed
+NARRATIVE_KEYS = ("insights", "evaluation_report", "model_card")
+
+data_analyst_crew_review(state, ctx, data) -> FlowState     # same shape as a flow.steps step
+data_scientist_crew_review(state, ctx, data) -> FlowState
+
+guard_dir(ctx) -> Path                           # artifacts/_staging/_guard/<run_id>
+snapshot_guarded(ctx) -> dict[str, str]          # {relative: sha256} + a byte copy of each
+current_checksums(ctx, snapshot) -> dict[str, str]   # the same files now; "<missing>" if deleted
+restore_guarded(ctx, snapshot) -> list[str]      # restores + warns; returns what was restored
+GUARD_LOG_PREFIX = "guard checksums"             # both maps are logged, before and after
+clear_guard(ctx) -> None
+token_totals(ctx) -> dict[str, int]              # {prompt, cached_prompt, completion, total}
+max_cost_usd() -> float
+llm_summary(ctx, state) -> dict                  # the metrics.llm block, defaulted
+priced(ctx, summary) -> dict                     # refreshes tokens + cost_usd
+record(ctx, state, summary) -> dict              # ctx.record_metrics({"llm": …}) + state.llm
+run_analyst_crew(ctx) -> dict                    # SEAM: imports crews.data_analyst lazily
+run_scientist_crew(ctx) -> dict                  # SEAM: narrative_only=True
+verify_artifacts_after_narrative(state, ctx) -> ValidationResult
+
+# flow.state
+FlowState.llm: dict[str, Any]                    # mirrors metrics.llm; {} in --no-llm mode
+
+# flow.main
+run_flow(*, mode="no-llm", …, max_cost_usd: float | None = None)
+RetailForecastFlow.data_analyst_crew_review / .data_scientist_crew_review
+
+# pipeline.__main__
+main(argv=None) -> int    # python -m pipeline [--no-llm | --llm] [--max-llm-cost-usd USD] …
+```
+
+Rules this module adds to §6:
+
+* **`metrics.llm`, never a top-level `llm` key.** `RunContext` is `extra="forbid"` with a published
+  field list, so `ctx.record_metrics({"llm": …})` is the only way to record it. Any issue or
+  criterion saying `run_log.json → llm` means `run_log.json → metrics.llm`.
+* **The guard needs a byte copy, not just a checksum.** With staging on, `ctx.out(paths.INSIGHTS)`
+  returns the *same* staged path the deterministic writer used, so a crew overwrites the only copy;
+  and the final path still holds the **previous** run's file until step 10 promotes (§6 rule 7), so
+  "restoring" from it would publish last run's numbers under this run's id. `snapshot_guarded`
+  therefore copies into `artifacts/_staging/_guard/<run_id>/`, a sibling of the staging tree so
+  `promote()` never sees it, and each crew step deletes its own copies.
+* **Nothing a crew does may escape its `ctx.step(...)` block** — with one deliberate exception.
+  `ctx.step` sets `ctx.status = "failed"` on any exception it sees, `finish()` cannot undo it and
+  `promote()` then refuses, so the cost cap, a guard restore and an LLM/agent error are caught
+  inside the body and reported with `ctx.warn`. The exception: if `ctx.status` is *already* failed
+  when the crew raises, a deterministic tool inside the crew stopped the run in its own step — a
+  genuine validation failure — and it is re-raised so the §39 handler reports it properly.
+* **Re-check completeness after crew 2.** Step 9 validates before the narrative rewrite, so
+  `verify_artifacts_after_narrative` repeats it on the staged paths with step 9's own wording
+  (`<name> was not generated`) before `publish` runs.
+* **The crews are imported lazily, inside the two seams.** That is what keeps `src/pipeline/` free
+  of CrewAI (§6 rule 10) while the CLI still decides the mode from a credential check
+  (`crews.environment` imports no CrewAI), and it is what lets `tests/test_flow_llm_mode.py` prove
+  the whole wiring without a network call.
+* **`RunMode` has exactly two values.** A run that asked for LLM mode and fell back for want of a
+  credential starts with `mode="no-llm"`; `run_log.json` always reports what actually ran.
+* **`inventory_plan.csv` can never be byte-identical across two runs.** It carries a `run_id`
+  provenance column (US-23), so a determinism comparison must exclude that column — every other
+  column, and every other artifact, is identical between a `--no-llm` run and an LLM run.

@@ -1,16 +1,27 @@
-"""``python -m pipeline`` — run the whole forecasting pipeline end to end (US-31, PRD §37).
+"""``python -m pipeline`` — run the whole forecasting pipeline end to end (US-31, US-33, §37).
 
-``--no-llm`` runs the ten deterministic Flow steps with no LLM involvement at all — the mode CI
-uses (§42) and the reproducibility baseline (§40). Without the flag the command *will* become the
-LLM mode of US-33 (crews reviewing the results and writing narrative around the same numbers);
-until that lands it prints a notice and behaves exactly like ``--no-llm``.
+Two modes, ten identical deterministic steps:
+
+* ``--no-llm`` runs those ten steps with no LLM involvement at all — the mode CI uses (§42) and
+  the reproducibility baseline (§40).
+* the default (or ``--llm``) additionally kicks the Data Analyst Crew off after step 3 and the
+  Data Scientist Crew's narrative task off after step 9 (US-33). The crews review results and
+  write prose; every number still comes from the same deterministic tools, so the artifacts are
+  numerically identical either way (§38).
+
+Without a credential the default falls back to ``--no-llm`` and says so, exiting 0; ``--llm``
+demands one and exits 2 without it. The check happens **before** the run context is started, so a
+run that stops here leaves no run log stranded at ``status: "running"`` for a run that never
+began, and the context is started with the *effective* mode — ``RunMode`` has exactly two values
+and ``run_log.json`` must report what actually ran.
 
 Exit codes match the rest of the project: ``0`` success, ``2`` a graceful validation stop (the
 ``FLOW STOPPED: …`` message goes to stderr), ``1`` an unexpected exception.
 
-The CrewAI import happens inside :func:`main`, not at module scope: ``src/pipeline/`` stays free
-of CrewAI imports (``docs/interfaces.md`` §6 rule 10), so importing any ``pipeline.*`` module —
-in tests, in the app — never pulls the LLM stack in.
+Every CrewAI-touching import happens inside :func:`main`, never at module scope: ``src/pipeline/``
+stays free of CrewAI imports (``docs/interfaces.md`` §6 rule 10), so importing any ``pipeline.*``
+module — in tests, in the app — never pulls the LLM stack in. The credential check itself costs no
+CrewAI import at all: :mod:`crews.environment` is deliberately free of one.
 """
 
 from __future__ import annotations
@@ -27,10 +38,24 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         prog="python -m pipeline",
         description="Run the retail demand forecasting pipeline (PRD §37, ten steps).",
     )
-    parser.add_argument(
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
         "--no-llm",
         action="store_true",
         help="run fully deterministically, without any LLM involvement (CI mode, §37)",
+    )
+    mode.add_argument(
+        "--llm",
+        action="store_true",
+        help="require LLM mode: exit 2 rather than falling back when no API key is set (§37)",
+    )
+    parser.add_argument(
+        "--max-llm-cost-usd",
+        type=float,
+        default=None,
+        metavar="USD",
+        help="override model_config.yaml -> llm.max_cost_usd for this run; reaching the cap "
+        "aborts the narrative step, not the run (§47)",
     )
     parser.add_argument(
         "--skip-tuning",
@@ -59,14 +84,36 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+def _resolve_mode(args: argparse.Namespace) -> str | None:
+    """The mode this run will actually use, or ``None`` when ``--llm`` was asked for without a key.
+
+    Printing happens here because the message is part of the contract: a fallback must be
+    announced (§2 of US-33), and a hard failure must point at the alternative that works.
+    """
+    if args.no_llm:
+        return "no-llm"
+
+    # crews.environment imports no CrewAI (module docstring), so the key check is free.
+    from crews.environment import NO_API_KEY_MESSAGE, api_key_variable, llm_model_name
+
+    credential = api_key_variable()
+    if credential is None:
+        if args.llm:
+            print(NO_API_KEY_MESSAGE, file=sys.stderr)
+            return None
+        print("LLM mode requires an API key — falling back to --no-llm")
+        return "no-llm"
+    # The variable NAME is safe to print; its value never is, and is never read into this process.
+    print(f"LLM mode: credential from {credential}, model {llm_model_name()}")
+    return "llm"
+
+
 def main(argv: list[str] | None = None) -> int:
     """Run the Flow, returning the process exit code."""
     args = _parse_args(argv)
-    if not args.no_llm:
-        print(
-            "LLM mode (crew review + narrative) arrives with US-33; "
-            "running the deterministic pipeline (--no-llm behaviour)."
-        )
+    mode = _resolve_mode(args)
+    if mode is None:
+        return 2
 
     raw_path = paths.FIXTURES_DIR / "raw_sample.csv" if args.sample else args.raw
     if raw_path is not None and not Path(raw_path).is_file():
@@ -78,10 +125,11 @@ def main(argv: list[str] | None = None) -> int:
     from flow.main import run_flow
 
     state, _ = run_flow(
-        mode="no-llm",
+        mode=mode,
         raw_path=raw_path,
         skip_tuning=args.skip_tuning,
         keep_failed=args.keep_failed,
+        max_cost_usd=args.max_llm_cost_usd,
     )
 
     if state.status == "success":
