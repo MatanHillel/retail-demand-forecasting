@@ -1,6 +1,9 @@
 {
   "artifacts": {
-    "feature_validation": "artifacts/reports/feature_validation.json"
+    "inventory_plan": "artifacts/forecasts/inventory_plan.csv",
+    "latest_forecast": "artifacts/forecasts/latest_forecast.csv",
+    "model": "artifacts/models/model.joblib",
+    "model_meta": "artifacts/models/model_meta.json"
   },
   "champion": null,
   "config_snapshot": {
@@ -94,6 +97,15 @@
         "max_abs_bias": 0.1,
         "meaningful_improvement_points": 2.0,
         "monthly_abs_bias_report_threshold": 0.25,
+        "similar_fill_rate_tolerance": 0.01,
+        "tie_break_order": [
+          "M2_gbm_poisson",
+          "M3_gbm_squared",
+          "M1_linear",
+          "M4_gbm_absolute",
+          "B2_ma3",
+          "B1_last_month"
+        ],
         "tie_wmape_points": 1.0
       },
       "features": [
@@ -384,21 +396,43 @@
     "sha256": null
   },
   "errors": [],
-  "finished_at": "2026-08-17T08:10:51.992761+00:00",
-  "metrics": {},
+  "finished_at": "2026-08-18T07:59:31.321023+00:00",
+  "metrics": {
+    "latest_forecast": {
+      "active_products": 3390,
+      "champion": "M2_gbm_poisson",
+      "forecast_origin": "2011-11",
+      "panel_products": 4723,
+      "sigma_source_shares": {
+        "abc_group": 0.12861356932153392,
+        "global": 0.0,
+        "product": 0.8713864306784661
+      },
+      "target_month": "2011-12",
+      "total_forecast_units": 398498.32229700306,
+      "total_target_inventory": 811430.0,
+      "z": 1.645
+    }
+  },
   "mode": "no-llm",
-  "run_id": "20260817T081028Z-e986bd",
+  "run_id": "20260818T075922Z-deb02f",
   "seed": 42,
-  "started_at": "2026-08-17T08:10:28.325752+00:00",
+  "started_at": "2026-08-18T07:59:22.813303+00:00",
   "status": "success",
   "steps": [
     {
-      "duration_s": 23.309,
+      "duration_s": 8.463,
       "inputs": {},
-      "name": "feature_validation",
+      "name": "latest_forecast",
       "outputs": {},
-      "row_counts": {},
-      "started_at": "2026-08-17T08:10:28.682997+00:00",
+      "row_counts": {
+        "inventory_plan_status": {
+          "after": 3390,
+          "before": 4723,
+          "removed": 1333
+        }
+      },
+      "started_at": "2026-08-18T07:59:22.847357+00:00",
       "status": "success",
       "warnings": []
     }
@@ -407,7 +441,7 @@
     "crewai": "0.86.0",
     "numpy": "1.26.4",
     "pandas": "2.2.3",
-    "python": "3.11.16",
+    "python": "3.11.15",
     "sklearn": "1.5.2",
     "streamlit": "1.39.0"
   },
