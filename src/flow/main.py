@@ -1,10 +1,12 @@
-"""``RetailForecastFlow`` — the CrewAI Flow orchestrating the ten §37 steps (US-31).
+"""``RetailForecastFlow`` — the CrewAI Flow orchestrating the ten §37 steps (US-31, US-32).
 
 The Flow is the conductor, not the orchestra: every step body lives in :mod:`flow.steps` and calls
 the same deterministic :mod:`pipeline` tools the standalone CLIs use. A ``@router`` after steps 1,
 3, 5 and 9 (the validation checkpoints) routes to *continue* or ``"fail"``; the ``@listen("fail")``
-handler writes ``validation_report.json`` and a ``status: failed`` ``run_log.json``, never calls
-``promote()``, and leaves the previous run's published artifacts untouched (§39).
+handler delegates to :func:`flow.failure.handle_failure`, which writes ``validation_report.json``
+and a ``status: failed`` ``run_log.json``, never calls ``promote()``, and archives (or, with
+``--no-keep-failed``, discards) this run's staging tree — so the previous run's published
+artifacts are left untouched (§39).
 
 **crewai 0.86.0 adaptation** (issue §3 says to document divergences — details in ``docs/flow.md``):
 
@@ -35,16 +37,12 @@ os.environ.setdefault("OTEL_SDK_DISABLED", "true")
 
 from crewai.flow.flow import Flow, listen, router, start  # noqa: E402
 
+from flow import failure as flow_failure  # noqa: E402
 from flow import steps as flow_steps  # noqa: E402
 from flow.state import FlowState  # noqa: E402
-from flow.steps import FlowData, validation_report_path  # noqa: E402
+from flow.steps import FlowData  # noqa: E402
 from pipeline.run_context import RunContext, RunMode  # noqa: E402
-from pipeline.validation import (  # noqa: E402
-    FlowValidationError,
-    ValidationResult,
-    Violation,
-    write_validation_report,
-)
+from pipeline.validation import FlowValidationError  # noqa: E402
 
 #: The shared failure label every router returns on a failed state (§37).
 FAIL = "fail"
@@ -68,15 +66,18 @@ class RetailForecastFlow(Flow[FlowState]):
         *,
         raw_path: Path | str | None = None,
         skip_tuning: bool = False,
+        keep_failed: bool = True,
     ) -> None:
         self._ctx = ctx
         self._data = FlowData(
             raw_path=None if raw_path is None else Path(raw_path),
             skip_tuning=skip_tuning,
         )
-        #: The ValidationResult behind a graceful stop; ``None`` for an unexpected exception.
-        self._failure_result: ValidationResult | None = None
-        self.failure_message: str | None = None
+        #: ``--keep-failed`` / ``--no-keep-failed`` (US-32): archive vs. discard a failed run's
+        #: staging tree. Read by :meth:`_finalize_failure` via :func:`flow.failure.handle_failure`.
+        self._keep_failed = keep_failed
+        #: The exception behind a graceful stop or an unexpected failure — ``None`` until one hits.
+        self._failure_error: Exception | None = None
         super().__init__()
         self.state.run_id = ctx.run_id
         self.state.started_at = ctx.started_at
@@ -98,12 +99,10 @@ class RetailForecastFlow(Flow[FlowState]):
         try:
             step_fn(self.state, ctx, self._data)
         except FlowValidationError as error:
-            self._failure_result = error.result
-            self.failure_message = str(error)
+            self._failure_error = error
             self._record_failure(name, error)
         except Exception as error:
-            self._failure_result = None
-            self.failure_message = f"{type(error).__name__}: {error}"
+            self._failure_error = error
             ctx.logger.exception(f"unexpected error in step {name}")
             self._record_failure(name, error)
 
@@ -124,31 +123,17 @@ class RetailForecastFlow(Flow[FlowState]):
         self.state.status = "failed"
 
     def _finalize_failure(self) -> None:
-        """The §39 failure path: validation report + ``status: failed`` run log, never a promote.
+        """The §39 failure path — delegates to :func:`flow.failure.handle_failure`.
 
-        ``promote()`` would raise on a failed context anyway; this handler simply never calls it,
-        so the previously published artifacts stay untouched.
+        ``promote()`` would raise on a failed context anyway; the handler simply never calls it,
+        so the previously published artifacts stay untouched, and it archives (or discards) this
+        run's staging tree so ``artifacts/_staging/`` never keeps a failed run's leftovers.
         """
-        ctx = self._ctx
-        result = self._failure_result
-        if result is None:
-            result = ValidationResult(
-                step=self.state.current_step or "flow",
-                passed=False,
-                violations=[
-                    Violation(
-                        step=self.state.current_step or "flow",
-                        rule="unexpected_error",
-                        message=self.failure_message or "unexpected error",
-                    )
-                ],
-            )
-        write_validation_report(result, validation_report_path(ctx), run_id=ctx.run_id)
-        ctx.finish("failed")
-        self.state.errors = list(ctx.errors)
-        self.state.status = "failed"
-        message = self.failure_message or f"FLOW STOPPED: {result.summary()}"
-        ctx.logger.error(message)
+        error = self._failure_error or RuntimeError(
+            (self.state.errors[-1]["message"] if self.state.errors else None)
+            or "unexpected failure with no recorded error"
+        )
+        flow_failure.handle_failure(self.state, self._ctx, error, keep_failed=self._keep_failed)
 
     # -- 1 → router --------------------------------------------------------
     @start()
@@ -236,6 +221,7 @@ def run_flow(
     raw_path: Path | str | None = None,
     skip_tuning: bool = False,
     base_dir: Path | None = None,
+    keep_failed: bool = True,
 ) -> tuple[FlowState, RunContext]:
     """Start a run context (staging on), kick the Flow off and return ``(state, ctx)``.
 
@@ -244,10 +230,16 @@ def run_flow(
     ``success`` (issue §8). The Flow's own handlers finish the context on both the success and the
     failure path; the ``except`` below only covers infrastructure errors (e.g. the Flow failing to
     construct), where the log must still flip to ``failed`` before re-raising.
+
+    ``keep_failed`` (US-32, ``--keep-failed`` / ``--no-keep-failed`` at the CLI) controls what
+    happens to a failed run's staging tree: archived under ``logs/failed_runs/<run_id>/`` for
+    debugging by default, or discarded outright.
     """
     ctx = RunContext.start(mode=mode, staging=True, base_dir=base_dir)
     ctx.write_run_log()
-    flow = RetailForecastFlow(ctx, raw_path=raw_path, skip_tuning=skip_tuning)
+    flow = RetailForecastFlow(
+        ctx, raw_path=raw_path, skip_tuning=skip_tuning, keep_failed=keep_failed
+    )
     try:
         flow.kickoff()
     except Exception:

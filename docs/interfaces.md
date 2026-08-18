@@ -685,9 +685,17 @@ artifact_validation / publish
 # flow.main  (the only crewai import under src/flow/)
 FAIL = "fail"; INTAKE_OK; CONTRACT_OK; FEATURES_OK; ARTIFACTS_OK   # router labels
 class RetailForecastFlow(Flow[FlowState]):
-    def __init__(self, ctx, *, raw_path=None, skip_tuning=False)
+    def __init__(self, ctx, *, raw_path=None, skip_tuning=False, keep_failed=True)
 run_flow(*, mode="no-llm", raw_path=None, skip_tuning=False,
-         base_dir=None) -> tuple[FlowState, RunContext]
+         base_dir=None, keep_failed=True) -> tuple[FlowState, RunContext]
+
+# flow.failure  (US-32, §39 — no crewai import)
+MISSING_COLUMN, RAW_HASH_MISMATCH        # re-exported from pipeline.download
+CONTRACT_MISMATCH                        # re-exported from pipeline.contract.CONTRACT_MISMATCH_TEMPLATE
+LEAKAGE                                  # re-exported from pipeline.feature_validation.LEAKAGE_FAILURE_MESSAGE
+ARTIFACT_NOT_GENERATED                   # mirrors flow.steps.artifact_validation's inline wording
+UNEXPECTED_EXCEPTION_RULE = "unexpected_exception"
+handle_failure(state, ctx, error, *, keep_failed=True) -> Path | None
 
 # pipeline.__main__  (imports flow.main inside main() only — §6 rule 10)
 main(argv=None) -> int      # python -m pipeline --no-llm [--skip-tuning] [--raw <path>|--sample]
@@ -727,3 +735,16 @@ Rules this module adds to §6:
 * **`tune()` rewrites `config/model_config.yaml`** and clears the config cache; step 6 reloads
   `load_model_config()` / `SplitSpec.load()` afterwards. `--skip-tuning` (tests, the CI sample run)
   skips the call entirely so the repo config is never touched.
+* **`flow.failure.handle_failure` is the only place that finalises a failed run** (US-32). Both the
+  `@listen("fail")` handler and a failure raised inside step 10 (no router follows it) call it with
+  whatever exception `RetailForecastFlow._run` caught — a `FlowValidationError` for a graceful
+  stop, anything else for an unexpected failure. It writes `validation_report.json`, calls
+  `ctx.finish("failed")` and archives `ctx.staging_dir` to `logs/failed_runs/<run_id>/`
+  (`ctx.discard_staging()` instead under `--no-keep-failed`) — never `ctx.promote()`, which refuses
+  once `ctx.status == "failed"` anyway. `paths.FAILED_RUNS_DIR` is `logs/failed_runs`.
+* **An unexpected exception synthesises its own `ValidationResult`**, never an empty one: build
+  `ValidationResult(step=state.current_step, passed=False, violations=[Violation(step=...,
+  rule="unexpected_exception", message=redact(str(error)))])` and write it with
+  `run_id=ctx.run_id` — a report with no violations tells the app a run failed for no stated
+  reason, which is worse than the previous run's report a reader correctly ignores on the
+  run-id mismatch (§6 rule 6).

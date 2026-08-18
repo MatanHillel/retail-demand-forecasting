@@ -25,6 +25,7 @@ EDA_TABLES_DIR: Path = REPORTS_DIR / "eda_tables"
 EVAL_TABLES_DIR: Path = REPORTS_DIR / "evaluation_tables"
 CONTRACTS_DIR: Path = ARTIFACTS_DIR / "contracts"
 LOGS_DIR: Path = PROJECT_ROOT / "logs"
+FAILED_RUNS_DIR: Path = LOGS_DIR / "failed_runs"  # a failed run's staging tree, archived (§39)
 DOCS_DIR: Path = PROJECT_ROOT / "docs"
 TESTS_DIR: Path = PROJECT_ROOT / "tests"
 FIXTURES_DIR: Path = TESTS_DIR / "fixtures"
