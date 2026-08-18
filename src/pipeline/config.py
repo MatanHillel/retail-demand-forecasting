@@ -222,6 +222,8 @@ class ChampionGates(_Base):
     monthly_abs_bias_report_threshold: float = Field(gt=0)
     tie_wmape_points: float = Field(gt=0)
     meaningful_improvement_points: float = Field(gt=0)
+    similar_fill_rate_tolerance: float = Field(gt=0)
+    tie_break_order: list[str] = Field(min_length=1)
 
     @model_validator(mode="after")
     def _report_threshold_is_looser(self) -> ChampionGates:
@@ -230,6 +232,13 @@ class ChampionGates(_Base):
                 "monthly_abs_bias_report_threshold must not be stricter than max_abs_bias"
             )
         return self
+
+    @field_validator("tie_break_order")
+    @classmethod
+    def _valid_model_ids(cls, value: list[str]) -> list[str]:
+        if not set(value).issubset(MODEL_IDS):
+            raise ValueError(f"tie_break_order must only contain values from {MODEL_IDS}")
+        return value
 
 
 class ValidationParams(_Base):
