@@ -21,9 +21,17 @@ artifacts are left untouched (§39).
   the state* to the next router, which returns ``"fail"``. Steps between two routers short-circuit
   via the same state guard.
 
-This module is the only place under ``src/flow/`` that imports CrewAI; :mod:`flow.steps` and
-:mod:`flow.state` stay import-clean so ``--no-llm`` mode never touches an LLM class (§37 No-LLM
-mode — ``make_llm`` exists only in :mod:`crews.common` and is never called here).
+**LLM mode** (US-33) adds two steps and changes nothing else. ``data_analyst_crew_review`` runs
+after step 3's router returns ``"contract_ok"``, and ``data_scientist_crew_review`` after step 9's
+router returns ``"artifacts_ok"`` and before step 10 publishes — so a crew is only ever kicked off
+once the validation checkpoint before it has passed (§37), and a routed-to-``fail`` run reaches
+neither. Both bodies live in :mod:`flow.llm_mode` and return immediately when
+``ctx.mode != "llm"``, which is why ``--no-llm`` and LLM runs execute the identical deterministic
+steps and produce identical numbers (§38, §40).
+
+:mod:`flow.steps` and :mod:`flow.state` stay import-clean, and :mod:`flow.llm_mode` imports the
+crews lazily inside its two seam functions — so a ``--no-llm`` run never touches an LLM class
+(§37 No-LLM mode — ``make_llm`` exists only in :mod:`crews.common` and is never called here).
 """
 
 from __future__ import annotations
@@ -38,6 +46,7 @@ os.environ.setdefault("OTEL_SDK_DISABLED", "true")
 from crewai.flow.flow import Flow, listen, router, start  # noqa: E402
 
 from flow import failure as flow_failure  # noqa: E402
+from flow import llm_mode as flow_llm_mode  # noqa: E402
 from flow import steps as flow_steps  # noqa: E402
 from flow.state import FlowState  # noqa: E402
 from flow.steps import FlowData  # noqa: E402
@@ -160,8 +169,15 @@ class RetailForecastFlow(Flow[FlowState]):
     def route_after_contract(self) -> str:
         return FAIL if self.state.status == "failed" else CONTRACT_OK
 
-    # -- 4, 5 → router -----------------------------------------------------
+    # -- crew 1 kickoff (LLM mode only) ------------------------------------
     @listen(CONTRACT_OK)
+    def data_analyst_crew_review(self) -> str:
+        """Crew 1, kicked off only once step 3 passed (§37). A no-op in ``--no-llm`` mode."""
+        self._run(flow_llm_mode.CREW1_STEP, flow_llm_mode.data_analyst_crew_review)
+        return self.state.status
+
+    # -- 4, 5 → router -----------------------------------------------------
+    @listen(data_analyst_crew_review)
     def data_scientist_work(self) -> str:
         self._run("data_scientist_work", flow_steps.data_scientist_work)
         return self.state.status
@@ -200,12 +216,19 @@ class RetailForecastFlow(Flow[FlowState]):
     def route_after_artifacts(self) -> str:
         return FAIL if self.state.status == "failed" else ARTIFACTS_OK
 
-    # -- 10 ----------------------------------------------------------------
+    # -- crew 2 kickoff (LLM mode only), then 10 ---------------------------
     @listen(ARTIFACTS_OK)
+    def data_scientist_crew_review(self) -> str:
+        """Crew 2, kicked off only once step 9 passed and before step 10 publishes (§37)."""
+        self._run(flow_llm_mode.CREW2_STEP, flow_llm_mode.data_scientist_crew_review)
+        return self.state.status
+
+    @listen(data_scientist_crew_review)
     def publish(self) -> str:
         self._run("publish", flow_steps.publish)
         if self.state.status == "failed":
-            # No router follows step 10, so a failed promote finalises here.
+            # No router follows step 10, so a failed promote — or a failure the crew-2 step
+            # raised, which no router follows either — finalises here.
             self._finalize_failure()
         return self.state.status
 
@@ -222,6 +245,7 @@ def run_flow(
     skip_tuning: bool = False,
     base_dir: Path | None = None,
     keep_failed: bool = True,
+    max_cost_usd: float | None = None,
 ) -> tuple[FlowState, RunContext]:
     """Start a run context (staging on), kick the Flow off and return ``(state, ctx)``.
 
@@ -234,12 +258,23 @@ def run_flow(
     ``keep_failed`` (US-32, ``--keep-failed`` / ``--no-keep-failed`` at the CLI) controls what
     happens to a failed run's staging tree: archived under ``logs/failed_runs/<run_id>/`` for
     debugging by default, or discarded outright.
+
+    ``mode="llm"`` (US-33) additionally kicks the two crews off around the deterministic steps.
+    The caller is responsible for having confirmed a credential exists first — ``RunMode`` has
+    exactly two values, so a run that asked for LLM mode and fell back must start with
+    ``mode="no-llm"``, and ``run_log.json`` reports what actually ran. ``max_cost_usd`` overrides
+    ``model_config.yaml -> llm.max_cost_usd`` for this run only (``--max-llm-cost-usd``); reaching
+    the cap aborts the narrative step, never the run.
     """
     ctx = RunContext.start(mode=mode, staging=True, base_dir=base_dir)
     ctx.write_run_log()
     flow = RetailForecastFlow(
         ctx, raw_path=raw_path, skip_tuning=skip_tuning, keep_failed=keep_failed
     )
+    if mode == "llm":
+        flow.state.llm = flow_llm_mode.llm_summary(ctx, flow.state)
+        if max_cost_usd is not None:
+            flow.state.llm = {**flow.state.llm, "max_cost_usd": float(max_cost_usd)}
     try:
         flow.kickoff()
     except Exception:

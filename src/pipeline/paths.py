@@ -67,6 +67,7 @@ EDA_REPORT: Path = REPORTS_DIR / "eda_report.html"            # required artifac
 INSIGHTS: Path = REPORTS_DIR / "insights.md"                  # required artifact
 EVALUATION_REPORT: Path = REPORTS_DIR / "evaluation_report.md"  # required artifact
 MODEL_CARD: Path = REPORTS_DIR / "model_card.md"              # required artifact
+DATA_QUALITY_REVIEW: Path = REPORTS_DIR / "data_quality_review.md"  # Crew 1's review (US-12)
 CHAMPION_DECISION: Path = REPORTS_DIR / "champion_decision.json"
 DATA_QUALITY_FINDINGS: Path = REPORTS_DIR / "data_quality_findings.json"
 FEATURE_VALIDATION: Path = REPORTS_DIR / "feature_validation.json"
