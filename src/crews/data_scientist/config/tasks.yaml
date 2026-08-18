@@ -1,0 +1,101 @@
+# Data Scientist Crew — the four tasks of US-26 §2, run with Process.sequential in this order.
+#
+# T1 validates the contract and builds a proven-leakage-free feature table. T2 trains and
+# back-tests every candidate. T3 evaluates, prices risk, simulates inventory, picks the champion
+# by code, builds the operational forecast and writes the two deterministic reports. T3-narrative
+# rewrites only the prose of those two reports, never their headings or tables. Every stop-on-
+# validation-failure decision is made by the tool wrapper itself (docs/interfaces.md, issue §8) —
+# if a tool call raises, the agent's turn ends there; it never gets a "passed: false" JSON blob it
+# could choose to ignore.
+
+feature_engineering:
+  description: >
+    Turn the validated panel into a proven, leakage-free feature table.
+
+    Call validate_contract_tool first. If it stops the run, that is the correct outcome — do not
+    attempt to fix or re-validate the data yourself.
+
+    Then call build_features_tool, then leakage_check_tool — in that order; each reads what the
+    one before it produced and will refuse if it has not run.
+
+    Report the row counts and the leakage-check results in plain language: how many feature rows
+    were built, how many products they cover, and that lag recomputation, the future-months
+    permutation test and the calendar-only-future-info check all passed. Quote every figure from
+    the tool results; you have no way to verify a number you did not read there.
+  expected_output: >
+    A short markdown summary (under 200 words) of the feature table's size and the leakage-check
+    outcome, every number taken from the three tool results, ending with the path of the file
+    that was written.
+  agent: feature_engineering_specialist
+
+model_training:
+  description: >
+    Train and back-test every candidate model.
+
+    You may call tune_tool first if you want the three gradient-boosted variants tuned on the
+    rolling validation folds; this is optional and only ever touches the training window.
+
+    Then call train_models_tool, then backtest_tool — in that order.
+
+    Report which models were trained, how many hold-out rows they were scored on, how many
+    rolling origins the back-test replayed and the resulting file paths. Quote every figure from
+    the tool results.
+  expected_output: >
+    A short markdown summary (under 200 words) of what was trained and back-tested, every number
+    taken from the tool results, ending with the paths of the files that were written.
+  agent: forecasting_model_scientist
+
+evaluation_and_reports:
+  description: >
+    Evaluate every candidate, price the forecast uncertainty, simulate inventory, select the
+    champion in code, build the operational forecast, aggregate to quarters and write the two
+    reports.
+
+    Call, in this order: evaluate_tool, robust_sigma_tool, simulate_inventory_tool,
+    select_champion_tool, latest_forecast_tool, quarterly_tool, write_reports_tool. Each reads
+    what the one before it produced.
+
+    You may use read_eval_table_tool, read_champion_decision_tool and read_model_meta_tool at any
+    point to look something up before you report on it.
+
+    Report which model won the champion gates, whether an ML model's improvement over the best
+    baseline was meaningful, and confirm evaluation_report.md and model_card.md were written.
+    Quote every figure from the tool results — a baseline winning is a legitimate outcome and
+    should be reported exactly as plainly as an ML model winning.
+  expected_output: >
+    A short markdown summary (under 250 words) naming the champion, its wMAPE and Bias, whether
+    it improved meaningfully on the best baseline, and confirming both reports were written, every
+    number taken from the tool results.
+  agent: model_evaluation_inventory_scientist
+
+narrative_rewrite:
+  description: >
+    Rewrite only the narrative prose of evaluation_report.md and model_card.md.
+
+    First read whichever tables and JSON you intend to cite, using read_eval_table_tool,
+    read_champion_decision_tool and read_model_meta_tool — these, plus the tables already returned
+    by the tools of the previous task, are the only permitted source of numbers.
+
+    Then call write_evaluation_narrative_tool with a rewritten evaluation_report.md that keeps
+    every heading and every table exactly as generated, improving only:
+      - the interpretation of the candidate comparison;
+      - the explanation of the champion-gate trace (why this model won, or why a baseline did);
+      - the business reading of the inventory KPIs (fill rate, excess, stockouts) and what they
+        mean for how much stock to hold.
+
+    Then call write_model_card_narrative_tool with a rewritten model_card.md that keeps its five
+    mandatory sections and every table exactly as generated, improving only the wording of:
+      - Model purpose;
+      - Limitations;
+      - Ethical considerations.
+
+    Improve the prose and the business framing. Do not touch a heading, do not touch a table, and
+    do not improve a number — every number you write is checked against the computed tables, and
+    if even one is unbacked, or a heading or a table has changed, your entire draft for that file
+    is discarded and the deterministic version is restored. If a tool rejects your draft it will
+    tell you exactly what was wrong: fix that and call it again, or leave the deterministic
+    version in place by not calling the tool again.
+  expected_output: >
+    A short report (under 200 words) stating, for each of the two files, whether your rewrite was
+    accepted or rejected by the guard, and confirming both files still exist.
+  agent: model_evaluation_inventory_scientist
