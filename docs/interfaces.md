@@ -2,8 +2,8 @@
 
 **Status:** generated from the merged code of US-00, US-01 and US-02, extended with the US-05 panel
 surface (branch `matan/pr1-us03-05-data-pipeline`), the US-06 EDA foundations (branch
-`matan/pr2-us06-08`), the US-13 feature surface (§10) and the US-23 operational-forecast surface
-(§11).
+`matan/pr2-us06-08`), the US-13 feature surface (§10), the US-23 operational-forecast surface
+(§11) and the US-24 quarterly-aggregation surface (§12).
 **Rule:** every issue that uses these modules links to this file instead of restating the API. If an
 issue's prompt and this file disagree, **this file wins** — it is derived from code that exists, the
 issue text was written before the code did.
@@ -28,9 +28,10 @@ Nothing in the project builds a path by hand. Import the constant.
 | `MODEL` ★ | `artifacts/models/model.joblib` |
 | `MODEL_META` | `artifacts/models/model_meta.json` |
 | `candidate_model(model_id)` | `artifacts/models/<model_id>.joblib` |
-| `BACKTEST_PREDICTIONS`, `LATEST_FORECAST`, `INVENTORY_PLAN`, `SIGMA_TABLE`, `INVENTORY_KPIS`, `HOLDOUT_SIMULATION_ROWS` | `artifacts/forecasts/…` |
+| `BACKTEST_PREDICTIONS`, `LATEST_FORECAST`, `INVENTORY_PLAN`, `SIGMA_TABLE`, `INVENTORY_KPIS`, `HOLDOUT_SIMULATION_ROWS`, `QUARTERLY_FORECAST` | `artifacts/forecasts/…` |
 | `EDA_REPORT` ★, `INSIGHTS` ★, `EVALUATION_REPORT` ★, `MODEL_CARD` ★ | `artifacts/reports/…` |
 | `CHAMPION_DECISION`, `DATA_QUALITY_FINDINGS`, `FEATURE_VALIDATION` | `artifacts/reports/…` |
+| `QUARTERLY_METRICS`, `QUARTERLY_LIMITATION` | `artifacts/reports/evaluation_tables/…` |
 | `DATASET_CONTRACT` ★ | `artifacts/contracts/dataset_contract.json` |
 | `VALIDATION_REPORT`, `RUN_LOG` | `artifacts/…` |
 | `FIGURES_DIR`, `EDA_TABLES_DIR`, `EVAL_TABLES_DIR`, `LOGS_DIR`, `FIXTURES_DIR` | directories |
@@ -589,3 +590,71 @@ Rules this module adds to §6:
 * **`run_latest_forecast` reads its four inputs from the canonical `paths.*` locations**, which is
   correct standalone (`staging=False`) and wrong under the Flow: US-33 step 8 must hand in the frames
   the producing steps returned (§6 rule 7).
+
+---
+
+## 12. `pipeline.quarterly` — quarterly aggregation of one-step-ahead forecasts (US-24)
+
+```python
+STEP_NAME = "quarterly_aggregation"
+SCOPE_OVERALL, SCOPE_QUARTER                                 # quarterly_metrics.csv "scope" values
+ROLLING_ESTIMATE_TYPE = "actuals+next_month_forecast"         # the 2011-Q4 operational row's label
+QUARTERLY_FORECAST_COLUMNS, QUARTERLY_METRICS_COLUMNS         # published column orders
+LIMITATION_TEXT                                                # deterministic markdown, no LLM
+
+quarter_label(month: str) -> str                              # "2011-08" -> "2011-Q3"
+quarter_months(quarter: str) -> list[str]                      # "2011-Q3" -> ["2011-07", ..., "2011-09"]
+default_models(champion: str) -> list[str]                     # [champion, B2], deduped if champion is B2
+
+aggregate_quarterly(backtest_df, models, cfg) -> pd.DataFrame  # pure
+rolling_quarter_estimate(latest_df, panel_df, champion, cleaning_cfg) -> pd.DataFrame  # pure
+quarterly_metrics(qdf) -> pd.DataFrame                          # pure, complete quarters only
+
+run_quarterly_aggregation(cfg, ctx, *, backtest_df, latest_df, panel_df, cleaning_cfg,
+                          champion, models=None) -> dict         # the Flow entry point
+run(argv=None) -> int                                            # python -m pipeline.quarterly
+```
+
+`run_quarterly_aggregation` returns `{quarterly_forecast, quarterly_metrics}` and writes three
+artifacts, **all three through `ctx.out()`** (§6 rule 1): `artifacts/forecasts/quarterly_forecast.csv`
+(`paths.QUARTERLY_FORECAST`), `artifacts/reports/evaluation_tables/quarterly_metrics.csv`
+(`paths.QUARTERLY_METRICS`) and `.../quarterly_limitation.md` (`paths.QUARTERLY_LIMITATION`). It
+**must run inside `ctx.step(...)`** — it calls `ctx.log_rows("quarterly_completeness", …)`.
+
+### `quarterly_forecast.csv` — published schema, extend but never rename
+
+One row per `(stock_code, quarter, model)`, sorted by `quarter, stock_code, model`:
+`stock_code, quarter, model, forecast_sum, actual_sum, n_months, complete, months_included,
+estimate_type`. `months_included` is a `;`-joined string of `YYYY-MM` values (CSV has no native
+list type). `complete` is `True` only when `n_months == 3` — this single rule covers both a
+calendar-incomplete quarter (2011-Q4, which the back-test only reaches for October and November)
+and a product not active for the whole quarter (§14); it is the only thing
+:func:`quarterly_metrics` reads to decide inclusion. The rolling operational row for the current
+partial quarter (`estimate_type = "actuals+next_month_forecast"`) is always `complete = False` and
+carries no `actual_sum` — regular back-tested rows leave `estimate_type` as an empty string.
+
+### `quarterly_metrics.csv` — published schema, extend but never rename
+
+`model, scope, quarter, wmape, bias, mae, rmse, n_rows, sum_actual, sum_forecast,
+negative_share` — the `scope`/`group` convention of `pipeline.inventory`'s `_scoped_kpis`, not a
+new one: `scope="overall"` rows carry the literal `quarter="all"`; `scope="quarter"` rows carry a
+real `"YYYY-Qn"` label. Computed only over `complete == True` rows of `quarterly_forecast.csv`, via
+`pipeline.metrics.metrics_table` — never a re-derived formula.
+
+Rules this module adds to §6:
+
+* **The champion is never named by hand.** Exactly the US-23 rule: the CLI calls
+  `pipeline.latest_forecast.resolve_champion(ctx)` / `champion_id(...)` rather than reimplementing
+  champion resolution — under the Flow, `champion` must be handed in from `ctx.champion`, never
+  re-read from `champion_decision.json` mid-run (§6 rule 7).
+* **`aggregate_quarterly` and `rolling_quarter_estimate` are pure** (no `ctx`, no disk) — `models`,
+  `latest_df`, `panel_df`, `backtest_df` and `cfg`/`cleaning_cfg` are always the caller's frames, so
+  this module is safe to call from inside the orchestrated Flow where the upstream files are still
+  under `artifacts/_staging/<run_id>/`.
+* **`aggregate_quarterly` filters to `cfg.backtest.first_origin + 1 .. cfg.backtest.last_origin +
+  1`** before grouping — a defensive guard so a caller that hands in extra rows (e.g. a stray
+  partial-month row) can never contaminate a quarterly sum; December 2011 must never enter a
+  metric (§21).
+* **No quarterly model artifact exists under `artifacts/models/`** — a repo-hygiene property, not a
+  per-run check: under the Flow the run's own files are not in `artifacts/models/` until promotion
+  anyway (§6 rule 7), and this module writes nothing there in any mode.

@@ -58,6 +58,7 @@ INVENTORY_PLAN: Path = FORECASTS_DIR / "inventory_plan.csv"
 SIGMA_TABLE: Path = FORECASTS_DIR / "sigma_table.csv"
 INVENTORY_KPIS: Path = FORECASTS_DIR / "inventory_kpis.csv"
 HOLDOUT_SIMULATION_ROWS: Path = FORECASTS_DIR / "holdout_simulation_rows.csv"
+QUARTERLY_FORECAST: Path = FORECASTS_DIR / "quarterly_forecast.csv"
 
 # --- reports ---------------------------------------------------------------
 EDA_REPORT: Path = REPORTS_DIR / "eda_report.html"            # required artifact
@@ -69,6 +70,8 @@ DATA_QUALITY_FINDINGS: Path = REPORTS_DIR / "data_quality_findings.json"
 FEATURE_VALIDATION: Path = REPORTS_DIR / "feature_validation.json"
 HOLDOUT_ROWS_ALL_MODELS: Path = EVAL_TABLES_DIR / "holdout_rows_all_models.csv"
 EXCESS_CONCENTRATION: Path = EVAL_TABLES_DIR / "excess_concentration.csv"
+QUARTERLY_METRICS: Path = EVAL_TABLES_DIR / "quarterly_metrics.csv"
+QUARTERLY_LIMITATION: Path = EVAL_TABLES_DIR / "quarterly_limitation.md"
 
 # --- contracts & run bookkeeping -------------------------------------------
 DATASET_CONTRACT: Path = CONTRACTS_DIR / "dataset_contract.json"  # required artifact
