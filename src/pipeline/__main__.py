@@ -37,6 +37,13 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         action="store_true",
         help="skip the hyper-parameter grid search and use the parameters in model_config.yaml",
     )
+    parser.add_argument(
+        "--keep-failed",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="archive a failed run's staging tree under logs/failed_runs/<run_id>/ for debugging "
+        "(default); --no-keep-failed deletes it instead (§39)",
+    )
     source = parser.add_mutually_exclusive_group()
     source.add_argument(
         "--raw",
@@ -70,7 +77,12 @@ def main(argv: list[str] | None = None) -> int:
     # (docs/interfaces.md §6 rule 10).
     from flow.main import run_flow
 
-    state, _ = run_flow(mode="no-llm", raw_path=raw_path, skip_tuning=args.skip_tuning)
+    state, _ = run_flow(
+        mode="no-llm",
+        raw_path=raw_path,
+        skip_tuning=args.skip_tuning,
+        keep_failed=args.keep_failed,
+    )
 
     if state.status == "success":
         return 0

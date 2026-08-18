@@ -73,6 +73,11 @@ _CHUNK_BYTES = 1 << 20
 _EXAMPLE_LIMIT = 5
 _DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
+#: PRD §39 graceful-stop message templates for this module's two checks — re-exported by
+#: ``flow.failure`` so every §39 wording lives in exactly one place.
+MISSING_COLUMN = "Missing required column {column}"
+RAW_HASH_MISMATCH = "raw data hash mismatch (expected {expected}, got {actual})"
+
 # Kaggle mirrors occasionally rename columns; normalise them back to the UCI names.
 _KAGGLE_RENAMES = {
     "InvoiceNo": "Invoice",
@@ -112,7 +117,7 @@ def verify_hash(path: Path | str, expected: str | None = None) -> ValidationResu
     violation = Violation(
         step="raw_hash",
         rule="expected_sha256",
-        message=f"raw data hash mismatch (expected {expected}, got {actual})",
+        message=RAW_HASH_MISMATCH.format(expected=expected, actual=actual),
     )
     return ValidationResult(step="raw_hash", passed=False, violations=[violation], extra=extra)
 
@@ -362,7 +367,7 @@ def validate_raw_schema(df: pd.DataFrame, cfg: CleaningConfig | None = None) -> 
                 Violation(
                     step=step,
                     rule="required_columns",
-                    message=f"Missing required column {column}",
+                    message=MISSING_COLUMN.format(column=column),
                 )
             )
 

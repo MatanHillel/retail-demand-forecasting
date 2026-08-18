@@ -100,10 +100,55 @@ successful run's files until step 10 promotes. Consequences:
   its first write leaves an honest `status: "running"` on disk instead of the previous run's
   `success`. Both `run_log.json` and `validation_report.json` bypass staging by design (§6 rule 2).
 
+## Failure handling (US-32, §39)
+
+`src/flow/failure.py` owns the single failure-finalising step every graceful stop and every
+unexpected exception shares. `RetailForecastFlow._run` (`src/flow/main.py`) catches everything a
+step raises (crewai 0.86.0 swallows exceptions raised in listeners — see the adaptation notes
+above) and remembers it; the `@listen("fail")` handler and a failure inside step 10 both call
+`flow.failure.handle_failure(state, ctx, error, keep_failed=...)`, which:
+
+1. Builds the `ValidationResult` to report. A `FlowValidationError` already carries one. Any other
+   exception (`MemoryError`, `KeyError`, …) has none, so one is synthesised with
+   `rule="unexpected_exception"` and the (redacted) exception text — never an empty report, which
+   would tell the app a run failed for no stated reason.
+2. Writes `artifacts/validation_report.json` stamped with `run_id=ctx.run_id` (never `None` —
+   `validation_report.json` is not cleared between runs, so an unstamped report can never be tied
+   back to the run that produced it).
+3. Calls `ctx.finish("failed")` — idempotent for a run `ctx.step(...)` already marked failed,
+   and it stamps `finished_at` even when the failure happened between two steps.
+4. **Never calls `ctx.promote()`.** It would raise on a failed context anyway; the previous run's
+   `artifacts/forecasts/*`, `artifacts/models/model.joblib` and `data/processed/*` are simply never
+   touched.
+5. Archives this run's staging tree. `ctx.staging_dir` (`artifacts/_staging/<run_id>/`) is moved
+   whole to `logs/failed_runs/<run_id>/` — moving the `<run_id>` directory, not its contents, is
+   what makes `artifacts/_staging/` literally empty afterwards. `--no-keep-failed` calls
+   `ctx.discard_staging()` instead, deleting the tree rather than preserving it for debugging.
+
+The five §39 message templates each live with the check that raises them, and `flow.failure`
+re-exports all five as one place to read or grep them: `MISSING_COLUMN` and `RAW_HASH_MISMATCH`
+(`pipeline.download`), `CONTRACT_MISMATCH` (`pipeline.contract`'s `CONTRACT_MISMATCH_TEMPLATE`),
+`LEAKAGE` (`pipeline.feature_validation`'s `LEAKAGE_FAILURE_MESSAGE`), and
+`ARTIFACT_NOT_GENERATED` (`flow.steps.artifact_validation`'s inline wording). None of them repeat
+the `FLOW STOPPED:` prefix — `FlowValidationError` adds it exactly once.
+
+### Streamlit banner
+
+`app.components.status.run_status_banner()` (US-27) reads `run_log.json` and shows
+`Forecast data unavailable — latest pipeline run failed (run id …)` whenever `status == "failed"`,
+with the reason underneath. Two rules keep the banner honest, because `validation_report.json` is
+written on success *and* failure and is never cleared between runs:
+
+* the report is trusted as the failure reason only when its `run_id` matches the current
+  `run_log.json`'s `run_id` and it did not itself pass — otherwise the banner falls back to
+  `run_log["errors"][-1]`;
+* a `status == "running"` run log (a process killed before `finish()` — Ctrl-C, OOM, a CI timeout)
+  is shown as in progress, not as failed or successful.
+
 ## CLI
 
 ```
-python -m pipeline --no-llm [--skip-tuning] [--raw <path> | --sample]
+python -m pipeline --no-llm [--skip-tuning] [--raw <path> | --sample] [--keep-failed | --no-keep-failed]
 ```
 
 * `--no-llm` — run fully deterministically; no LLM class is imported or instantiated. Without the
@@ -112,6 +157,8 @@ python -m pipeline --no-llm [--skip-tuning] [--raw <path> | --sample]
   (tuning rewrites that file in place; CI and tests always skip).
 * `--raw <path>` / `--sample` — run on an explicit raw CSV / on `tests/fixtures/raw_sample.csv`
   (the CI fixture). The recorded-hash check applies only to the canonical download.
+* `--keep-failed` (default) / `--no-keep-failed` — archive a failed run's staging tree under
+  `logs/failed_runs/<run_id>/` for debugging, or delete it outright (US-32, §39).
 
 The CrewAI import lives inside `pipeline.__main__.main()`, so importing any `pipeline.*` module
 never pulls the LLM stack in (`docs/interfaces.md` §6 rule 10).
