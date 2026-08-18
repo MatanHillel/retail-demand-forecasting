@@ -35,6 +35,8 @@ PRODUCT_FORECASTS = str(APP_DIR / "pages" / "2_Product_Forecasts.py")
 PRODUCT_DETAIL = str(APP_DIR / "pages" / "3_Product_Detail.py")
 MODEL_EVALUATION = str(APP_DIR / "pages" / "4_Model_Evaluation.py")
 INVENTORY_POLICY = str(APP_DIR / "pages" / "5_Inventory_Policy.py")
+PIPELINE_DATA_QUALITY = str(APP_DIR / "pages" / "6_Pipeline_Data_Quality.py")
+DATA_INSIGHTS = str(APP_DIR / "pages" / "7_Data_Insights.py")
 
 
 def _make_run_context(tmp_path, *, status, errors=None) -> RunContext:
@@ -409,3 +411,129 @@ class TestInventoryPolicyScreen:
         assert not at.exception
         after = at.dataframe[0].value
         assert not before["Fill rate"].equals(after["Fill rate"])
+
+
+class TestPipelineDataQualityScreen:
+    """Screen 6 — Pipeline & Data Quality (US-30, PRD §33.6). The diagnostics screen: it must
+
+    render in full even when the last run failed, so most tests here run against a fabricated
+    failed run rather than being skipped like the other screens.
+    """
+
+    def setup_method(self) -> None:
+        st.cache_data.clear()
+
+    def teardown_method(self) -> None:
+        st.cache_data.clear()
+
+    def test_renders_against_real_artifacts(self) -> None:
+        at = AppTest.from_file(PIPELINE_DATA_QUALITY, default_timeout=30).run()
+        assert not at.exception
+
+    def test_waterfall_table_has_at_least_ten_rows(self) -> None:
+        at = AppTest.from_file(PIPELINE_DATA_QUALITY, default_timeout=30).run()
+
+        assert not at.exception
+        waterfall_tables = [
+            frame.value for frame in at.dataframe if "rows_after" in frame.value.columns
+        ]
+        assert waterfall_tables
+        assert len(waterfall_tables[0]) >= 10
+
+    def test_model_card_tab_shows_five_headings(self) -> None:
+        at = AppTest.from_file(PIPELINE_DATA_QUALITY, default_timeout=30).run()
+
+        assert not at.exception
+        text = "\n".join(str(element.value) for element in at.markdown)
+        for heading in (
+            "1. Model purpose",
+            "2. Training data summary",
+            "3. Metrics",
+            "4. Limitations",
+            "5. Ethical considerations",
+        ):
+            assert heading in text
+
+    def test_contains_the_ethics_licensing_note(self) -> None:
+        source = Path(PIPELINE_DATA_QUALITY).read_text(encoding="utf-8")
+        assert "CC BY 4.0" in source
+
+    def test_failed_run_shows_flow_stopped_message(self, tmp_path, monkeypatch) -> None:
+        ctx = _make_run_context(
+            tmp_path,
+            status="failed",
+            errors=[
+                {
+                    "step": "contract_validation",
+                    "type": "FlowValidationError",
+                    "message": (
+                        "FLOW STOPPED: clean_data does not match dataset_contract.json "
+                        "(1 violations)"
+                    ),
+                    "traceback": "Traceback (most recent call last):\n  boom",
+                }
+            ],
+        )
+        _write_validation_report(
+            tmp_path,
+            run_id=ctx.run_id,
+            passed=False,
+            violations=[
+                {
+                    "step": "contract_validation",
+                    "rule": "columns",
+                    "message": "DISTINCTIVE_VIOLATION_MESSAGE",
+                    "count": 1,
+                }
+            ],
+        )
+        _patch_paths(monkeypatch, tmp_path)
+
+        at = AppTest.from_file(PIPELINE_DATA_QUALITY, default_timeout=30).run()
+
+        assert not at.exception
+        text = _text(at)
+        assert "FLOW STOPPED:" in text
+        assert "DISTINCTIVE_VIOLATION_MESSAGE" in text
+
+    def test_re_validate_button_passes_on_current_artifacts(self) -> None:
+        at = AppTest.from_file(PIPELINE_DATA_QUALITY, default_timeout=30).run()
+        button = next(b for b in at.button if b.label == "Re-validate now")
+
+        at = button.click().run()
+
+        assert not at.exception
+        assert "PASSED" in _text(at)
+
+
+class TestDataInsightsScreen:
+    """Screen 7 — Data & Insights / EDA (US-30, PRD §33.7). Runs against the real artifacts."""
+
+    def setup_method(self) -> None:
+        st.cache_data.clear()
+
+    def teardown_method(self) -> None:
+        st.cache_data.clear()
+
+    def test_renders_against_real_artifacts(self) -> None:
+        at = AppTest.from_file(DATA_INSIGHTS, default_timeout=30).run()
+        assert not at.exception
+
+    def test_shows_at_least_eight_images(self) -> None:
+        at = AppTest.from_file(DATA_INSIGHTS, default_timeout=30).run()
+
+        assert not at.exception
+        assert len(at.get("imgs")) >= 8
+
+    def test_table_download_button_exists(self) -> None:
+        at = AppTest.from_file(DATA_INSIGHTS, default_timeout=30).run()
+
+        assert not at.exception
+        labels = {button.label for button in at.get("download_button")}
+        assert "Download table CSV" in labels
+        assert "Download all EDA tables (zip)" in labels
+
+    def test_no_plotting_calls_in_page(self) -> None:
+        source = Path(DATA_INSIGHTS).read_text(encoding="utf-8")
+        assert "import matplotlib" not in source
+        assert "st.pyplot" not in source
