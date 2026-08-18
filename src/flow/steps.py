@@ -465,6 +465,7 @@ def publish(state: FlowState, ctx: RunContext, data: FlowData) -> FlowState:
                 f"promotion incomplete: {len(stale)} registered artifact(s) were never written: "
                 + "; ".join(stale)
             )
+        ctx.record_artifact_checksums()
         ctx.discard_staging()
 
     state.metrics = dict(ctx.metrics)

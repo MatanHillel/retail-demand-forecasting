@@ -16,10 +16,16 @@ in tests, in the app — never pulls the LLM stack in.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
 from pipeline import paths
+
+#: Overrides where ``artifacts/`` and ``logs/`` are written when ``--out-root`` is not given
+#: (issue AI-39/§8: wired straight to ``RunContext.start(base_dir=...)``, ``pipeline.paths`` stays
+#: untouched). Production runs leave both unset and write into the repo, as always.
+_OUT_ROOT_ENV_VAR = "RDF_OUT_ROOT"
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
@@ -36,6 +42,14 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         "--skip-tuning",
         action="store_true",
         help="skip the hyper-parameter grid search and use the parameters in model_config.yaml",
+    )
+    parser.add_argument(
+        "--out-root",
+        type=Path,
+        default=None,
+        help="write artifacts/ and logs/ under this directory instead of the repo root, so two "
+        f"runs never clobber each other's output (env {_OUT_ROOT_ENV_VAR}; tests and "
+        "reproducibility checks only — production runs leave this unset)",
     )
     parser.add_argument(
         "--keep-failed",
@@ -73,6 +87,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"raw file not found: {raw_path}", file=sys.stderr)
         return 2
 
+    out_root = args.out_root
+    if out_root is None:
+        env_value = os.environ.get(_OUT_ROOT_ENV_VAR)
+        out_root = Path(env_value) if env_value else None
+
     # Deferred import: flow.main imports crewai, which must never load at pipeline.* module scope
     # (docs/interfaces.md §6 rule 10).
     from flow.main import run_flow
@@ -81,6 +100,7 @@ def main(argv: list[str] | None = None) -> int:
         mode="no-llm",
         raw_path=raw_path,
         skip_tuning=args.skip_tuning,
+        base_dir=out_root,
         keep_failed=args.keep_failed,
     )
 
