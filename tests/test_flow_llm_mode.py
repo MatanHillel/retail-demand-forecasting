@@ -247,6 +247,59 @@ def test_the_guard_leaves_no_copies_behind(tmp_path, harness) -> None:
     assert leftover == []
 
 
+def test_the_checksums_are_logged_before_and_after_and_are_equal(tmp_path, harness) -> None:
+    """§6 of the issue: the checksums are *logged* and equal — the run's own log is the evidence.
+
+    The log file is JSON lines, one object per record, so the two ``guard checksums`` maps are
+    parsed back out and compared rather than matched as text.
+    """
+    run = _run(tmp_path)
+
+    lines = (run.base / "logs" / f"run_{run.ctx.run_id}.log").read_text(encoding="utf-8")
+    records = [json.loads(line) for line in lines.splitlines() if line.strip()]
+    messages = [record["message"] for record in records]
+
+    def _maps(when: str) -> list[dict]:
+        prefix = f"{flow_llm_mode.GUARD_LOG_PREFIX} {when} "
+        return [
+            json.loads(message[message.index("{") :])
+            for message in messages
+            if message.startswith(prefix)
+        ]
+
+    before, after = _maps("before"), _maps("after")
+    assert len(before) == len(after) == 2, "one map per crew step, before and after"
+    for taken, checked in zip(before, after, strict=True):
+        assert taken, "nothing was guarded"
+        assert taken == checked, "a numeric artifact changed across a crew step"
+
+    verified = [
+        message
+        for message in messages
+        if message.startswith(f"{flow_llm_mode.GUARD_LOG_PREFIX} verified:")
+    ]
+    assert len(verified) == 2
+    assert all("restored" not in message for message in verified)
+    assert run.state.llm["guard_checked"] == len(before[-1])
+
+
+def test_a_restore_is_visible_in_the_verified_line(tmp_path, harness) -> None:
+    def tamper(ctx: RunContext) -> None:
+        (ctx.staging_dir / _relative(paths.FEATURES)).write_bytes(b"tampered\n")
+
+    harness.analyst_action = tamper
+    run = _run(tmp_path)
+
+    lines = (run.base / "logs" / f"run_{run.ctx.run_id}.log").read_text(encoding="utf-8")
+    messages = [json.loads(line)["message"] for line in lines.splitlines() if line.strip()]
+    verified = [
+        message
+        for message in messages
+        if message.startswith(f"{flow_llm_mode.GUARD_LOG_PREFIX} verified:")
+    ]
+    assert any("1 restored" in message for message in verified)
+
+
 def test_a_crew_that_only_rewrites_a_narrative_triggers_no_restore(tmp_path, harness) -> None:
     def rewrite_insights(ctx: RunContext) -> None:
         ctx.out(_relative(paths.INSIGHTS)).write_text("polished prose\n", encoding="utf-8")

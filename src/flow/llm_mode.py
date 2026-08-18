@@ -20,10 +20,12 @@ Four rules make this safe enough that an LLM run and a ``--no-llm`` run are nume
 2. **A crew may not change a number.** :func:`snapshot_guarded` takes a sha256 *and a byte copy*
    of every numeric artifact this run has staged, before the crew starts;
    :func:`restore_guarded` compares afterwards and puts the original back, recording
-   ``crew modified numeric artifact <name> — restored``. The copy is essential: with staging on,
-   ``ctx.out(paths.INSIGHTS)`` hands the crew the *same* staged path the deterministic writer
-   used, so "restore from staging" would restore the overwritten file, and restoring from the
-   final path would publish the **previous** run's numbers under this run's id (§8 of the issue).
+   ``crew modified numeric artifact <name> — restored``. Both checksum maps are written to the
+   run log under :data:`GUARD_LOG_PREFIX`, so the run's own log is the evidence that the numbers
+   did not move — not merely a comparison that happened in memory. The copy is essential: with
+   staging on, ``ctx.out(paths.INSIGHTS)`` hands the crew the *same* staged path the deterministic
+   writer used, so "restore from staging" would restore the overwritten file, and restoring from
+   the final path would publish the **previous** run's numbers under this run's id (§8).
 3. **A crew's own mistakes are warnings, not failures.** The cost cap, a guard restore and an LLM
    or agent error are all caught *inside* the ``ctx.step(...)`` block and reported with
    ``ctx.warn``: ``ctx.step`` sets ``ctx.status = "failed"`` on any exception it sees, ``finish()``
@@ -51,6 +53,7 @@ and a test can replace either seam with a stub and prove the wiring without a ne
 from __future__ import annotations
 
 import hashlib
+import json
 import shutil
 from pathlib import Path
 from typing import Any
@@ -102,6 +105,11 @@ GUARDED_ARTIFACTS: tuple[Path, ...] = (
     paths.DATA_QUALITY_FINDINGS,
     paths.FEATURE_VALIDATION,
 )
+
+#: Prefix of the two log lines carrying the guard's checksums, so "before" and "after" can be
+#: found and diffed in ``logs/run_<id>.log`` (§6 of the issue: the checksums are *logged* and
+#: equal, not merely compared in memory).
+GUARD_LOG_PREFIX = "guard checksums"
 
 #: Directory holding the guard's byte copies. Deliberately a sibling of the run's staging tree
 #: rather than a child: ``promote()`` must never see these files, ``handle_failure`` moves the
@@ -168,11 +176,33 @@ def _watched(ctx: RunContext) -> list[Path]:
 # --------------------------------------------------------------------------
 # the determinism guard (§38): numbers in, same numbers out
 # --------------------------------------------------------------------------
+def current_checksums(ctx: RunContext, snapshot: dict[str, str]) -> dict[str, str]:
+    """Checksums of the same files *now*. A file the crew deleted reports ``"<missing>"``."""
+    return {
+        relative_posix: (
+            _sha256(ctx.staging_dir / Path(relative_posix))
+            if (ctx.staging_dir / Path(relative_posix)).is_file()
+            else "<missing>"
+        )
+        for relative_posix in snapshot
+    }
+
+
+def _log_checksums(ctx: RunContext, when: str, checksums: dict[str, str]) -> None:
+    """Write one checksum map to the run log, sorted so "before" and "after" diff cleanly."""
+    ctx.logger.info(
+        f"{GUARD_LOG_PREFIX} {when} ({len(checksums)} artifact(s)): "
+        + json.dumps(checksums, sort_keys=True)
+    )
+
+
 def snapshot_guarded(ctx: RunContext) -> dict[str, str]:
     """Copy and checksum every numeric artifact this run has staged. Returns ``{relative: sha}``.
 
     Both halves matter. The checksum detects a change; the copy is the only thing that can undo
-    one, because the crew writes to the very path the deterministic step wrote to.
+    one, because the crew writes to the very path the deterministic step wrote to. The map is
+    logged as it is taken, and again after the crew, so the run's own log is the evidence that
+    the numbers did not move.
     """
     destination_root = guard_dir(ctx)
     snapshot: dict[str, str] = {}
@@ -183,6 +213,7 @@ def snapshot_guarded(ctx: RunContext) -> dict[str, str]:
         copy.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, copy)
         snapshot[relative.as_posix()] = _sha256(source)
+    _log_checksums(ctx, "before", snapshot)
     return snapshot
 
 
@@ -193,12 +224,15 @@ def restore_guarded(ctx: RunContext, snapshot: dict[str, str]) -> list[str]:
     ``crew modified numeric artifact <name> — restored``.
     """
     root = guard_dir(ctx)
+    after = current_checksums(ctx, snapshot)
+    _log_checksums(ctx, "after", after)
+
     restored: list[str] = []
     for relative_posix, expected in sorted(snapshot.items()):
+        if after[relative_posix] == expected:
+            continue
         relative = Path(relative_posix)
         current = ctx.staging_dir / relative
-        if current.is_file() and _sha256(current) == expected:
-            continue
         copy = root / relative
         if not copy.is_file():  # pragma: no cover - the snapshot always writes one
             ctx.warn(f"crew modified numeric artifact {relative_posix} — no copy to restore from")
@@ -207,6 +241,12 @@ def restore_guarded(ctx: RunContext, snapshot: dict[str, str]) -> list[str]:
         shutil.copy2(copy, current)
         ctx.warn(f"crew modified numeric artifact {relative_posix} — restored")
         restored.append(relative_posix)
+
+    unchanged = len(snapshot) - len(restored)
+    ctx.logger.info(
+        f"{GUARD_LOG_PREFIX} verified: {unchanged}/{len(snapshot)} numeric artifact(s) unchanged"
+        + (f", {len(restored)} restored" if restored else "")
+    )
     return restored
 
 
@@ -245,6 +285,7 @@ def llm_summary(ctx: RunContext, state: FlowState) -> dict[str, Any]:
         "cost_usd": 0.0,
         "max_cost_usd": max_cost_usd(),
         "narrative_accepted": dict.fromkeys(NARRATIVE_KEYS, False),
+        "guard_checked": 0,
         "guard_restored": [],
     }
 
@@ -338,6 +379,7 @@ def _kickoff(
             return record(ctx, state, summary)
 
         snapshot = snapshot_guarded(ctx)
+        summary["guard_checked"] = len(snapshot)
         ctx.logger.info(f"{label}: kicking off over {len(snapshot)} guarded artifact(s)")
         crew_summary: dict[str, Any] | None = None
         try:

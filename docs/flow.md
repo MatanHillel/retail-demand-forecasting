@@ -210,6 +210,9 @@ in that kit can compute a number.
    "restore from staging" would restore the overwritten file — and restoring from the final path
    would publish the **previous** run's numbers under this run's id. The copies live in
    `artifacts/_staging/_guard/<run_id>/` and are deleted by the step that took them.
+   Both checksum maps are written to `logs/run_<id>.log` under the prefix `guard checksums`
+   (`before`, `after`, then a `verified: N/M numeric artifact(s) unchanged` line), so the run's
+   own log is the evidence that nothing moved — not a comparison that only happened in memory.
 3. **A crew's own mistakes are warnings, not failures.** The cost cap, a guard restore and an LLM
    or agent error are all caught *inside* the `ctx.step(...)` block and reported with `ctx.warn`.
    This is forced by `RunContext`: `ctx.step` sets `status = "failed"` on any exception it sees,
@@ -264,7 +267,8 @@ to record it (and `FlowState.llm` mirrors it for the Flow's own use):
     "cost_usd": 0.0,
     "max_cost_usd": 2.0,
     "narrative_accepted": {"insights": true, "evaluation_report": true, "model_card": true},
-    "guard_restored": []
+    "guard_checked": 28,                  // numeric artifacts checksummed before the kickoff
+    "guard_restored": []                  // any the crew changed, and which were put back
   }
 }
 ```

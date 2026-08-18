@@ -809,7 +809,9 @@ data_scientist_crew_review(state, ctx, data) -> FlowState
 
 guard_dir(ctx) -> Path                           # artifacts/_staging/_guard/<run_id>
 snapshot_guarded(ctx) -> dict[str, str]          # {relative: sha256} + a byte copy of each
+current_checksums(ctx, snapshot) -> dict[str, str]   # the same files now; "<missing>" if deleted
 restore_guarded(ctx, snapshot) -> list[str]      # restores + warns; returns what was restored
+GUARD_LOG_PREFIX = "guard checksums"             # both maps are logged, before and after
 clear_guard(ctx) -> None
 token_totals(ctx) -> dict[str, int]              # {prompt, cached_prompt, completion, total}
 max_cost_usd() -> float
