@@ -27,9 +27,10 @@ package-dir = { "" = "src" }
 where = ["src"]
 
 # The EDA report template is a runtime asset, not documentation: without this it is missing from
-# a non-editable install and eda_report.html cannot be rendered (US-11).
+# a non-editable install and eda_report.html cannot be rendered (US-11). Same reason for the
+# evaluation-report / model-card templates (US-25).
 [tool.setuptools.package-data]
-pipeline = ["eda/templates/*.j2"]
+pipeline = ["eda/templates/*.j2", "templates/*.j2"]
 # Same reason: agents.yaml and tasks.yaml define the crew itself, so they are runtime assets and
 # a non-editable install without them cannot build the Data Analyst Crew (US-12).
 crews = ["data_analyst/config/*.yaml"]

@@ -1,0 +1,157 @@
+# Model Card — Retail Demand Forecasting
+
+*Run:* `{{ run_id }}` · *Generated:* {{ generated_at }} · *Data hash:* `{{ data_hash }}`
+
+*Provenance:* every number below was computed by the pipeline and is traceable to a table under
+`artifacts/reports/evaluation_tables/`, `artifacts/forecasts/`, `artifacts/models/` or
+`artifacts/contracts/`. Narrative may be enriched by the LLM agent in LLM mode; the same guard
+checks both versions (PRD §38).
+
+## 1. Model purpose
+
+This model forecasts **SKU x month gross demand**: the number of units of one product expected to
+sell in the following calendar month, for every product **active** in the {{ active_k }} months
+before the target month (PRD §14). Its forecast feeds a separate, deterministic inventory-policy
+layer (PRD §24) that converts it into a **{{ inventory_output_name }}** using safety stock derived
+from out-of-sample forecast errors; the model itself never predicts inventory. The dataset carries
+no on-hand or on-order data, so this output is never an order quantity (PRD §7).
+
+## 2. Training data summary
+
+The panel used for training and evaluation covers **{{ contract_rows }}** product-month rows across
+**{{ contract_products }}** products, `{{ first_month }}` to `{{ last_full_month }}` complete, plus
+the partial month `{{ partial_months }}` (shown, never scored).
+
+* **Training window:** `{{ train_start }}` to `{{ train_end }}` — {{ n_train_rows }} rows fed to
+  each hold-out candidate model (`candidates_meta.json`).
+* **Hold-out window:** `{{ holdout_start }}` to `{{ holdout_end }}` — months the model never saw
+  during training, kept aside to test it honestly.
+* **Operational refit:** `model.joblib` is the champion configuration refit through
+  `{{ refit_train_end }}` (`model_meta.json`), producing the `{{ operational_target_month }}`
+  forecast.
+* **Active-product window:** k = {{ active_k }} months (PRD §14).
+
+**Cleaning summary** (`data_quality_findings.json` waterfall): {{ raw_rows }} raw sales-line rows in,
+{{ clean_rows }} rows out after cleaning and de-duplication.
+
+**Source:** `{{ dataset_source }}`. **Citation:** `{{ citation }}`.
+
+## 3. Metrics
+
+wMAPE and Bias are always reported together (PRD §23) — never one without the other.
+
+| Model | wMAPE | Bias | MAE | RMSE | n rows | Coverage | Δ wMAPE vs B2 |
+|---|---|---|---|---|---|---|---|
+{% for row in candidates %}
+| {{ row.model }} | {{ row.wmape }} | {{ row.bias }} | {{ row.mae }} | {{ row.rmse }} | {{ row.n_rows }} | {{ row.coverage_share }} | {{ row.wmape_points_vs_b2 }} |
+{% endfor %}
+
+**Champion:** {{ champion.champion }} ({{ champion.champion_kind }}), selected by the PRD §20 gates
+(bias, accuracy, inventory tie-break, meaningful improvement), executed by code — never picked by
+hand. Best gate-1-passing baseline: {{ champion.best_baseline }}.
+{% if champion.improvement_points is not none %}
+Improvement over that baseline: {{ champion.improvement_points }} wMAPE points (meaningful:
+{{ champion.meaningful_improvement }}).
+{% endif %}
+{% if champion.statement %}
+{{ champion.statement }}.
+{% endif %}
+
+### By hold-out month
+
+| Model | Month | wMAPE | Bias |
+|---|---|---|---|
+{% for row in by_month %}
+| {{ row.model }} | {{ row.target_month }} | {{ row.wmape }} | {{ row.bias }} |
+{% endfor %}
+
+### By ABC group (training-window ABC)
+
+| Model | ABC class | wMAPE | Bias |
+|---|---|---|---|
+{% for row in by_abc %}
+| {{ row.model }} | {{ row.abc_class }} | {{ row.wmape }} | {{ row.bias }} |
+{% endfor %}
+
+## 4. Limitations
+
+* **Twenty-four months of history only.** The dataset runs `{{ first_month }}` to
+  `{{ last_full_month }}` complete; there is no earlier history to validate longer seasonal cycles.
+* **December 2011 is partial** (`{{ partial_months }}`) — shown as a partial actual, never scored,
+  and it is the target of the latest operational forecast only.
+* **No on-hand or on-order inventory data.** The output is a **{{ inventory_output_name }}**, never
+  an order quantity (PRD §7); an actual replenishment quantity cannot be computed from this dataset.
+* **Cold start.** A product with no observed month at or before the forecast origin gets no model
+  forecast and no invented history (status `Insufficient History / New Product`).
+* **Extreme orders.** A handful of very large wholesale lines exist in the data; safety stock uses a
+  robust spread measure (median absolute deviation) rather than a plain standard deviation so a few
+  outliers cannot inflate the recommendation for every similar product (PRD §26).
+* **Gross demand, not net of returns.** The target is units sold on positive sales lines;
+  cancellations and adjustments are never subtracted, because inventory was needed to fulfil the
+  original order (PRD §9).
+* **Left-censoring.** Products already selling in the first observed month may be older than the
+  data shows; `product_age_months` is a lower bound, not a true age (PRD §47).
+* **Service-level disclaimer:** `{{ disclaimer }}`
+* **Quarterly figures are sums of one-step-ahead monthly forecasts, not a genuine three-month-ahead
+  forecast** — see the methodology note directly below.
+* **σ fallback.** A product needs at least {{ config.min_residuals_product }} out-of-sample
+  residuals to use its own σ; otherwise the estimate falls back through
+  {{ config.fallback_levels }} (PRD §27).
+* **Post-hoc bias correction is out of scope** for this MVP — it proved unstable and is explicitly
+  excluded (PRD §20).
+
+### Quarterly methodology note
+
+{{ quarterly_limitation }}
+
+## 5. Ethical considerations
+
+* **No decisions about individuals.** This model forecasts aggregate product demand; it never
+  scores, ranks or makes a decision about a person.
+* **Customer ID is never a feature.** Rows without a `Customer ID` are kept (the sale still
+  happened and still needed stock), and the identifier itself is diagnostic-only, never a model
+  input.
+* **Anonymised data.** The underlying dataset carries no names, addresses or other direct
+  identifiers — only a numeric customer id, country and transaction detail.
+* **Residual risks:**
+  * *Blind reliance* — a planner treating the forecast or the recommended inventory as certain
+    rather than an estimate with a measured error and fill rate.
+  * *Overstock from poor uncertainty estimates* — σ estimated from too few residuals (product,
+    then ABC-group, then global fallback) can misstate the safety stock for a thin-history product.
+  * *Stockouts from a biased model* — a model whose bias gate would fail if re-checked out of band
+    (e.g. after a demand shift the pipeline has not yet re-evaluated).
+  * *Misinterpretation of safety stock* — `{{ disclaimer }}`
+* **Scope of the recommendation.** Every number here relies only on the historical sales recorded
+  in this dataset; it carries no external signal (promotions, competitor activity, macroeconomic
+  data) and should not be read as one.
+* **Licensing and attribution.** Source: `{{ dataset_source }}`. Citation: `{{ citation }}`. This
+  attribution is carried into every derived artifact this pipeline produces.
+
+## Configuration
+
+* Active-product window: k = {{ config.k }} months.
+* Lead time: {{ config.lead_time_months }} month(s).
+* Safety-stock z: {{ config.z }} (offered: {{ config.z_options }}).
+* σ: {{ config.mad_scale }} x MAD, minimum {{ config.min_residuals_product }} residuals, fallback
+  {{ config.fallback_levels }}.
+* Champion gates: max |bias| {{ config.max_abs_bias }}, monthly bias report threshold
+  {{ config.monthly_abs_bias_report_threshold }}, tie band {{ config.tie_wmape_points }} points,
+  meaningful improvement {{ config.meaningful_improvement_points }} points, similar-fill-rate
+  tolerance {{ config.similar_fill_rate_tolerance }}.
+* Temporal split: train {{ config.train_start }}..{{ config.train_end }}, validation
+  {{ config.validation_start }}..{{ config.validation_end }}, hold-out
+  {{ config.holdout_start }}..{{ config.holdout_end }}, never scored: {{ config.never_score }}.
+
+## Version
+
+* Run: `{{ run_id }}`. Data hash: `{{ data_hash }}`. Seed: {{ seed }}.
+* Library versions:
+{% for row in versions %}
+  * `{{ row.package }} {{ row.version }}`
+{% endfor %}
+{% if artifacts %}
+* Artifacts registered by this run:
+{% for row in artifacts %}
+  * `{{ row.path }}` — {{ row.size_bytes }} bytes
+{% endfor %}
+{% endif %}

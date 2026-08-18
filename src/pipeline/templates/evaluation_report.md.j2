@@ -1,0 +1,153 @@
+# Evaluation Report — Retail Demand Forecasting
+
+*Run:* `{{ run_id }}` · *Generated:* {{ generated_at }} · *Data hash:* `{{ data_hash }}`
+
+*Configuration:* active-product window k = {{ config.k }} · seed {{ config.seed }} · train targets
+{{ config.train_start }}..{{ config.train_end }} · validation targets
+{{ config.validation_start }}..{{ config.validation_end }} · hold-out targets
+{{ config.holdout_start }}..{{ config.holdout_end }} · never scored: {{ config.never_score }} ·
+champion gates: max |bias| {{ config.max_abs_bias }}, meaningful improvement
+{{ config.meaningful_improvement_points }} wMAPE points, tie band {{ config.tie_wmape_points }}
+points · default z {{ config.z }} (offered: {{ config.z_options }}) · σ = {{ config.mad_scale }} x
+MAD, fallback {{ config.fallback_levels }}.
+
+*Provenance:* every number below was computed by the pipeline and is traceable to a table under
+`artifacts/reports/evaluation_tables/`, `artifacts/forecasts/` or `artifacts/reports/`. Narrative
+may be enriched by the LLM agent in LLM mode; the same guard checks both versions (PRD §38).
+
+## Comparison of all candidates
+
+| Model | wMAPE | Bias | MAE | RMSE | n rows | Coverage | Negative share (raw) | Δ wMAPE vs B2 | Relative improvement | ≥ threshold vs B2 | Note |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+{% for row in candidates %}
+| {{ row.model }} | {{ row.wmape }} | {{ row.bias }} | {{ row.mae }} | {{ row.rmse }} | {{ row.n_rows }} | {{ row.coverage_share }} | {{ row.negative_share_raw }} | {{ row.wmape_points_vs_b2 }} | {{ row.relative_pct }} | {{ row.meaningful }} | {{ row.note }} |
+{% endfor %}
+
+B3 (seasonal naive) has no observed month t-12 for every product; its metrics are computed only on
+rows where a seasonal forecast exists — see the coverage column above.
+
+## By hold-out month and by ABC group
+
+ABC computed on the training window through {{ train_end }}.
+
+### By hold-out month
+
+| Model | Month | wMAPE | Bias | MAE | RMSE | n rows |
+|---|---|---|---|---|---|---|
+{% for row in by_month %}
+| {{ row.model }} | {{ row.target_month }} | {{ row.wmape }} | {{ row.bias }} | {{ row.mae }} | {{ row.rmse }} | {{ row.n_rows }} |
+{% endfor %}
+
+### By ABC group (training-window ABC)
+
+| Model | ABC class | wMAPE | Bias | MAE | RMSE | n rows |
+|---|---|---|---|---|---|---|
+{% for row in by_abc %}
+| {{ row.model }} | {{ row.abc_class }} | {{ row.wmape }} | {{ row.bias }} | {{ row.mae }} | {{ row.rmse }} | {{ row.n_rows }} |
+{% endfor %}
+
+## Champion decision trace
+
+**Champion:** {{ champion.champion }} ({{ champion.champion_kind }}). **Best gate-1-passing
+baseline:** {{ champion.best_baseline }}.
+{% if champion.improvement_points is not none %}
+**Improvement over the best baseline:** {{ champion.improvement_points }} wMAPE points —
+**meaningful:** {{ champion.meaningful_improvement }} (threshold:
+{{ champion.meaningful_improvement_points }} points).
+{% endif %}
+{% if champion.gate1_all_failed %}
+No candidate passed the bias gate (|bias| <= {{ champion.max_abs_bias }}); the champion was chosen
+by smallest |bias| among the two lowest-wMAPE candidates (edge case, PRD §20).
+{% endif %}
+{% if champion.statement %}
+{{ champion.statement }}.
+{% endif %}
+
+Post-hoc bias correction is out of scope for this MVP and is not applied anywhere in this pipeline
+(PRD §20).
+
+| Model | wMAPE | Bias | Gate 1 (bias) | Months \|bias\| over threshold | Gate 2 rank | Gate 3 decision | Excluded |
+|---|---|---|---|---|---|---|---|
+{% for row in champion.candidates %}
+| {{ row.model }} | {{ row.wmape }} | {{ row.bias }} | {{ row.gate1_pass }} | {{ row.months_over_bias_threshold }} | {{ row.gate2_rank }} | {{ row.gate3_decision }} | {{ row.excluded_reason }} |
+{% endfor %}
+
+## Back-test consistency
+
+The hold-out comparison above uses each fitted model's single *fixed* fit (through
+{{ config.train_end }}), scored once against the whole hold-out. Baselines need no fitting, so
+their hold-out rows are the hold-out slice of the rolling back-test. This section instead
+re-scores every candidate at **every** rolling back-test origin, to show how stable each model's
+wMAPE and bias are across origins rather than at the single hold-out fit.
+
+| Model | Mean wMAPE | Std wMAPE | Min wMAPE | Max wMAPE | Mean bias | Months \|bias\| over threshold |
+|---|---|---|---|---|---|---|
+{% for row in consistency %}
+| {{ row.model }} | {{ row.wmape_mean }} | {{ row.wmape_std }} | {{ row.wmape_min }} | {{ row.wmape_max }} | {{ row.bias_mean }} | {{ row.months_over_threshold }} |
+{% endfor %}
+
+## Inventory KPIs per policy
+
+Two policies, simulated for the champion and B2 (the main baseline) on the identical hold-out
+rows: `forecast_only` (target = forecast, no safety stock) and `forecast_plus_ss` (target =
+forecast + z x robust σ). Output is always a **{{ inventory_output_name }}**, never an order
+quantity — the dataset carries no on-hand or on-order data (PRD §7).
+
+| Model | Policy | Fill rate | Stockout units | Excess units | Stockout SKU-month rate | Excess per unit shortage |
+|---|---|---|---|---|---|---|
+{% for row in kpi_rows %}
+| {{ row.model }} | {{ row.policy }} | {{ row.fill_rate }} | {{ row.stockout_units }} | {{ row.excess_units }} | {{ row.stockout_skumonth_rate }} | {{ row.excess_per_unit_shortage }} |
+{% endfor %}
+
+### z sensitivity ({{ champion.champion }}, forecast_plus_ss)
+
+| z | Fill rate | Excess units | Stockout units |
+|---|---|---|---|
+{% for row in z_sensitivity %}
+| {{ row.z }} | {{ row.fill_rate }} | {{ row.excess_units }} | {{ row.stockout_units }} |
+{% endfor %}
+
+{% if excess_sentence %}
+Excess is dominated by a few very large orders: for {{ excess_sentence.model }} under
+`forecast_plus_ss`, the `top_1pct_share` of SKU-months by excess account for
+{{ excess_sentence.top_1pct_share }} of total excess units, and the `top_5pct_share` account for
+{{ excess_sentence.top_5pct_share }} of {{ excess_sentence.total_excess }} total excess units
+(`excess_concentration.csv`).
+{% endif %}
+
+{% if sigma_shares %}
+σ source, champion, most recent hold-out month {{ sigma_shares.target_month }}
+({{ sigma_shares.n_products }} active products, `sigma_summary.csv`): product-level
+{{ sigma_shares.share_product }}, ABC-group level {{ sigma_shares.share_abc_group }}, global level
+{{ sigma_shares.share_global }}; zero-MAD share {{ sigma_shares.share_zero_mad }}.
+{% endif %}
+
+## Quarterly aggregation
+
+| Model | Scope | Quarter | wMAPE | Bias | n rows |
+|---|---|---|---|---|---|
+{% for row in quarterly_rows %}
+| {{ row.model }} | {{ row.scope }} | {{ row.quarter }} | {{ row.wmape }} | {{ row.bias }} | {{ row.n_rows }} |
+{% endfor %}
+
+{{ quarterly_limitation }}
+
+## Reproducibility
+
+Seed: {{ seed }}. Two runs on the same input data and configuration produce byte-identical
+artifacts (CLAUDE.md §2 rule 16) — this run's data hash and configuration are recorded in the
+header above.
+
+**Versions:**
+{% for row in versions %}
+* `{{ row.package }} {{ row.version }}`
+{% endfor %}
+
+**Artifacts registered by this run:**
+{% if artifacts %}
+{% for row in artifacts %}
+* `{{ row.path }}` — {{ row.size_bytes }} bytes
+{% endfor %}
+{% else %}
+No artifacts were registered by this standalone run.
+{% endif %}
