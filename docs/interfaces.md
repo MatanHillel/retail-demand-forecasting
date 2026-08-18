@@ -2,7 +2,8 @@
 
 **Status:** generated from the merged code of US-00, US-01 and US-02, extended with the US-05 panel
 surface (branch `matan/pr1-us03-05-data-pipeline`), the US-06 EDA foundations (branch
-`matan/pr2-us06-08`) and the US-13 feature surface (§10).
+`matan/pr2-us06-08`), the US-13 feature surface (§10) and the US-23 operational-forecast surface
+(§11).
 **Rule:** every issue that uses these modules links to this file instead of restating the API. If an
 issue's prompt and this file disagree, **this file wins** — it is derived from code that exists, the
 issue text was written before the code did.
@@ -25,6 +26,7 @@ Nothing in the project builds a path by hand. Import the constant.
 | `CLEAN_DATA` ★ | `data/processed/clean_data.csv` |
 | `FEATURES` ★ | `data/processed/features.csv` |
 | `MODEL` ★ | `artifacts/models/model.joblib` |
+| `MODEL_META` | `artifacts/models/model_meta.json` |
 | `candidate_model(model_id)` | `artifacts/models/<model_id>.joblib` |
 | `BACKTEST_PREDICTIONS`, `LATEST_FORECAST`, `INVENTORY_PLAN`, `SIGMA_TABLE`, `INVENTORY_KPIS`, `HOLDOUT_SIMULATION_ROWS` | `artifacts/forecasts/…` |
 | `EDA_REPORT` ★, `INSIGHTS` ★, `EVALUATION_REPORT` ★, `MODEL_CARD` ★ | `artifacts/reports/…` |
@@ -487,3 +489,103 @@ Rules this module adds to §6:
   (`staging=True`) the file is at `artifacts/_staging/<run_id>/data/processed/features.csv` until
   `promote()`; a check against the final path before promotion reads the previous run's file (§6
   rule 7).
+
+---
+
+## 11. `pipeline.latest_forecast` — the operational forecast & inventory plan (US-23)
+
+```python
+STEP_NAME = "latest_forecast"
+INVENTORY_OUTPUT_NAME = "Recommended Target Inventory"      # §7 — never a re-order size
+STATUS_FORECAST, STATUS_NEW_PRODUCT, INACTIVE_STATUS_TEMPLATE
+LATEST_FORECAST_COLUMNS, INVENTORY_PLAN_COLUMNS             # published column orders
+inactive_status(k) -> str                                   # "Inactive (no sales in last 6 months)"
+
+BaselineForecaster(model_id)                                # .model_id, .feature, .predict(features)
+
+resolve_champion(ctx) -> dict                               # ctx.champion first, the JSON second
+champion_id(decision) -> str
+holdout_metrics_reference(decision, model_id, ctx) -> dict  # {wmape, bias}, never recomputed
+
+operational_origin(cleaning_cfg) -> str                     # raw.last_full_month (2011-11)
+operational_features(panel_df, cfg, origin) -> pd.DataFrame # pure
+validate_operational_inputs(operational_df, train_features_df, panel_df,
+                            origin, cfg, cleaning_cfg) -> ValidationResult      # pure
+
+refit_champion(features_df, champion, cfg, ctx, *, decision=None, origin=None) -> estimator
+build_latest_forecast(panel_df, champion_model, cfg, ctx, *, champion, abc_train_df,
+                      origin=None, features_df=None) -> pd.DataFrame
+operational_sigma(backtest_df, abc_train_df, latest_df, champion, policy_cfg) -> pd.DataFrame
+build_inventory_plan(latest_df, sigma_df, policy_cfg, ctx, *, panel_df, abc_train_df,
+                     features_df, cfg, origin=None) -> pd.DataFrame
+sanity_report(plan, latest, policy_cfg) -> str
+run_latest_forecast(cfg, ctx) -> dict                       # the Flow step-8 entry point
+run(argv=None) -> int                                       # python -m pipeline.latest_forecast
+```
+
+`run_latest_forecast` returns `{champion, model, latest_forecast, sigma_table, inventory_plan,
+validation}` and writes four artifacts, **all four through `ctx.out()`** (§6 rule 1):
+`artifacts/models/model.joblib` (`paths.MODEL`), `artifacts/models/model_meta.json`
+(`paths.MODEL_META`), `artifacts/forecasts/latest_forecast.csv` and
+`artifacts/forecasts/inventory_plan.csv`. It **must run inside `ctx.step(...)`** — it calls
+`ctx.log_rows("inventory_plan_status", …)`.
+
+### `latest_forecast.csv` — published schema, extend but never rename
+
+One row per **active** product (§14), sorted by `stock_code`:
+`stock_code, description, forecast_origin, target_month, model, prediction, lag_1,
+rolling_mean_3, abc_class, is_active, status`. `forecast_origin` is always
+`cleaning_config → raw.last_full_month` and `target_month` always the month after it (§16);
+`prediction` is clipped at zero; `is_active` is always true and `status` always `"Forecast"` —
+both document the filter that produced the rows, exactly as `features.csv` does.
+
+### `inventory_plan.csv` — published schema, extend but never rename
+
+One row per product **in the whole panel**, sorted by `stock_code`:
+`stock_code, description, forecast_origin, target_month, model, forecast, sigma, sigma_source,
+n_residuals_product, z, safety_stock, target_inventory, uncertainty_ratio, abc_class,
+last_month_units, ma3_units, months_since_last_sale, product_age_months, status, run_id`.
+
+`status` is one of three values and nothing else: `"Forecast"`, `inactive_status(k)` or
+`"Insufficient History / New Product"` (§15 — a product with no observed month at or before the
+origin gets no model forecast and no invented history). Only a `"Forecast"` row carries `forecast`,
+`sigma`, `sigma_source`, `n_residuals_product`, `z`, `safety_stock`, `target_inventory`,
+`uncertainty_ratio`, `ma3_units`, `months_since_last_sale` and `product_age_months`; every other
+row leaves them empty rather than claiming a zero. `last_month_units` is read from the panel for
+**every** row and equals the `lag_1` feature on a forecast row. Whole-number columns are pandas
+nullable `Int64`, so the CSV holds `936` and `` — never `936.000000` and never a phantom `0`.
+
+Rules this module adds to §6:
+
+* **The champion is never named by hand.** `resolve_champion` reads `ctx.champion` (set by US-22)
+  and falls back to `paths.CHAMPION_DECISION` only for the standalone CLI, where the producing run
+  has already promoted. Under `staging=True` the final JSON still holds the *previous* run's
+  decision (§6 rule 7), so the Flow must set `ctx.champion` rather than rely on the file. A missing
+  decision raises `FileNotFoundError`: PRD §20 is executed by code and there is no
+  `--force-champion` flag.
+* **`model.joblib` is the champion *refit through the origin*, not a hold-out candidate.** US-17's
+  candidates stop at the training window and stay at `paths.candidate_model(model_id)`;
+  `model_meta.json` records `train_targets`, `n_rows`, `seed`, `sklearn_version`, `run_id` and the
+  `holdout_metrics_reference` so the two can never be confused. A champion that is a **baseline** is
+  persisted as a `BaselineForecaster` (`kind: "baseline"`, `n_rows: 0`), because a baseline winning
+  the §20 gates is a legitimate outcome and `model.joblib` is a required artifact (§41).
+  `B3_seasonal_naive` is unsupported by design — reference only (§19), and its rule reads the panel's
+  month `t−12` rather than a feature column.
+* **The December-2011 boundary is proved, not asserted.** `validate_operational_inputs` rebuilds the
+  operational features from a panel whose `raw.partial_months` rows carry corrupted measurements and
+  requires an identical frame (rule `partial_month_not_used`), plus `forecast_origin`, `target_month`
+  and `refit_window`. It is pure and returns a `ValidationResult`; the caller writes the report with
+  `write_validation_report(result, run_id=ctx.run_id)` and raises `FlowValidationError` (§6 rules 4
+  and 5).
+* **σ for the operational month needs a universe row.** `pipeline.sigma.sigma_table` takes the
+  products to price from the rows it finds *at* the evaluation month, and the back-test's last target
+  is 2011-11 — so `operational_sigma` appends one residual-free placeholder per active product at the
+  target month. Eligibility (`target_month < t` **and** the residual is not NaN) is unchanged, so the
+  placeholders price the products without ever pricing themselves. Calling `sigma_table` directly
+  with `eval_months=["2011-12"]` returns an empty frame; use `operational_sigma`.
+* **The two formulas come from `pipeline.inventory`.** `safety_stock` and `target_inventory` are
+  imported, never restated — one definition of §25 and §28 for the hold-out simulation and the
+  operational plan alike.
+* **`run_latest_forecast` reads its four inputs from the canonical `paths.*` locations**, which is
+  correct standalone (`staging=False`) and wrong under the Flow: US-33 step 8 must hand in the frames
+  the producing steps returned (§6 rule 7).

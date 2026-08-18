@@ -43,6 +43,7 @@ FEATURES: Path = PROCESSED_DIR / "features.csv"              # required artifact
 
 # --- models ----------------------------------------------------------------
 MODEL: Path = MODELS_DIR / "model.joblib"                    # required artifact (champion)
+MODEL_META: Path = MODELS_DIR / "model_meta.json"            # provenance of the refit champion
 
 
 def candidate_model(model_id: str) -> Path:
