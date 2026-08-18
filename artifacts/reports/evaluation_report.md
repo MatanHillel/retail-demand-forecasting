@@ -1,6 +1,6 @@
 # Evaluation Report — Retail Demand Forecasting
 
-*Run:* `20260818T095202Z-00bbdd` · *Generated:* 2026-08-18T09:52:02.712808+00:00 · *Data hash:* `not recorded in this run`
+*Run:* `20260818T095823Z-fdcd09` · *Generated:* 2026-08-18T09:58:24.060569+00:00 · *Data hash:* `not recorded in this run`
 
 *Configuration:* active-product window k = 6 · seed 42 · train targets
 2010-03..2011-05 · validation targets

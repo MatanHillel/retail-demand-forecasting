@@ -394,21 +394,21 @@
     "sha256": null
   },
   "errors": [],
-  "finished_at": "2026-08-18T09:52:03.652672+00:00",
+  "finished_at": "2026-08-18T09:58:25.335261+00:00",
   "metrics": {},
   "mode": "no-llm",
-  "run_id": "20260818T095202Z-00bbdd",
+  "run_id": "20260818T095823Z-fdcd09",
   "seed": 42,
-  "started_at": "2026-08-18T09:52:02.643629+00:00",
+  "started_at": "2026-08-18T09:58:23.956983+00:00",
   "status": "success",
   "steps": [
     {
-      "duration_s": 0.974,
+      "duration_s": 1.321,
       "inputs": {},
       "name": "reports",
       "outputs": {},
       "row_counts": {},
-      "started_at": "2026-08-18T09:52:02.681577+00:00",
+      "started_at": "2026-08-18T09:58:24.012666+00:00",
       "status": "success",
       "warnings": []
     }

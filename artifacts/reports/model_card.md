@@ -1,6 +1,6 @@
 # Model Card — Retail Demand Forecasting
 
-*Run:* `20260818T095202Z-00bbdd` · *Generated:* 2026-08-18T09:52:03.308929+00:00 · *Data hash:* `not recorded in this run`
+*Run:* `20260818T095823Z-fdcd09` · *Generated:* 2026-08-18T09:58:24.864140+00:00 · *Data hash:* `not recorded in this run`
 
 *Provenance:* every number below was computed by the pipeline and is traceable to a table under
 `artifacts/reports/evaluation_tables/`, `artifacts/forecasts/`, `artifacts/models/` or
@@ -216,7 +216,7 @@ quarter (`complete = False`, no `actual_sum`).
 
 ## Version
 
-* Run: `20260818T095202Z-00bbdd`. Data hash: `not recorded in this run`. Seed: 42.
+* Run: `20260818T095823Z-fdcd09`. Data hash: `not recorded in this run`. Seed: 42.
 * Library versions:
   * `python 3.11.15`
   * `pandas 2.2.3`
