@@ -18,11 +18,14 @@ from __future__ import annotations
 import math
 from pathlib import Path
 
+import numpy as np
+import pandas as pd
 import streamlit as st
 from streamlit.testing.v1 import AppTest
 
 from pipeline import paths
-from pipeline.config import load_inventory_policy
+from pipeline.config import MODEL_IDS, load_inventory_policy
+from pipeline.metrics import format_pct
 from pipeline.run_context import RunContext, close_log_handlers
 from pipeline.validation import ValidationResult, Violation, write_validation_report
 
@@ -30,6 +33,8 @@ APP_DIR = Path(__file__).resolve().parents[1] / "src" / "app"
 HOME = str(APP_DIR / "Home.py")
 PRODUCT_FORECASTS = str(APP_DIR / "pages" / "2_Product_Forecasts.py")
 PRODUCT_DETAIL = str(APP_DIR / "pages" / "3_Product_Detail.py")
+MODEL_EVALUATION = str(APP_DIR / "pages" / "4_Model_Evaluation.py")
+INVENTORY_POLICY = str(APP_DIR / "pages" / "5_Inventory_Policy.py")
 
 
 def _make_run_context(tmp_path, *, status, errors=None) -> RunContext:
@@ -309,3 +314,98 @@ class TestProductDetailScreen:
 
         assert not at.exception
         assert "unavailable" in _text(at) or "cannot be shown" in _text(at)
+
+
+class TestModelEvaluationScreen:
+    """Screen 4 — Model Evaluation (US-29, PRD §33.4). Runs against the real artifacts."""
+
+    def setup_method(self) -> None:
+        st.cache_data.clear()
+
+    def teardown_method(self) -> None:
+        st.cache_data.clear()
+
+    def test_renders_candidate_table_and_champion(self) -> None:
+        at = AppTest.from_file(MODEL_EVALUATION, default_timeout=30).run()
+
+        assert not at.exception
+        candidate_table = at.dataframe[0].value
+        models_shown = {name.split(" ")[0] for name in candidate_table["Model"]}
+        assert models_shown == set(MODEL_IDS)
+        assert any("champion" in str(name) for name in candidate_table["Model"])
+
+    def test_champion_trace_tab_has_gate_columns(self) -> None:
+        at = AppTest.from_file(MODEL_EVALUATION, default_timeout=30).run()
+
+        assert not at.exception
+        trace_table = at.dataframe[1].value
+        assert "Gate 1 (bias) pass" in trace_table.columns
+        assert "Gate 2 rank (wMAPE)" in trace_table.columns
+        assert set(trace_table["Model"]) == set(MODEL_IDS)
+
+    def test_never_shows_a_december_2011_row(self) -> None:
+        at = AppTest.from_file(MODEL_EVALUATION, default_timeout=30).run()
+
+        assert not at.exception
+        for frame in at.dataframe:
+            for column in frame.value.columns:
+                assert not frame.value[column].astype(str).eq("2011-12").any()
+
+    def test_gate_thresholds_come_from_config_not_literals(self) -> None:
+        source = Path(MODEL_EVALUATION).read_text(encoding="utf-8")
+        assert "0.10" not in source
+        assert "0.25" not in source
+        assert "2.0" not in source
+
+
+class TestInventoryPolicyScreen:
+    """Screen 5 — Inventory Policy Evaluation (US-29, PRD §33.5). Runs against real artifacts."""
+
+    def setup_method(self) -> None:
+        st.cache_data.clear()
+
+    def teardown_method(self) -> None:
+        st.cache_data.clear()
+
+    def test_imports_pipeline_inventory_for_the_whatif_path(self) -> None:
+        source = Path(INVENTORY_POLICY).read_text(encoding="utf-8")
+        assert "from pipeline.inventory import" in source
+
+    def test_renders_disclaimer(self) -> None:
+        at = AppTest.from_file(INVENTORY_POLICY, default_timeout=30).run()
+
+        policy = load_inventory_policy()
+        assert not at.exception
+        assert policy.disclaimer in _text(at)
+
+    def test_default_z_matches_precomputed_kpis(self) -> None:
+        at = AppTest.from_file(INVENTORY_POLICY, default_timeout=30).run()
+        policy = load_inventory_policy()
+
+        assert not at.exception
+        model_a = at.selectbox[0].value
+        kpis = pd.read_csv(paths.INVENTORY_KPIS)
+        expected = kpis.loc[
+            (kpis["model"] == model_a)
+            & (kpis["policy"] == "forecast_only")
+            & (kpis["scope"] == "overall")
+            & np.isclose(kpis["z"], policy.z)
+        ]["fill_rate"].iloc[0]
+
+        table = at.dataframe[0].value
+        row = table.loc[
+            table["Series"].str.startswith(model_a) & table["Series"].str.contains("Forecast only")
+        ]
+        assert row["Fill rate"].iloc[0] == format_pct(expected)
+
+    def test_moving_z_option_changes_the_numbers(self) -> None:
+        at = AppTest.from_file(INVENTORY_POLICY, default_timeout=30).run()
+        policy = load_inventory_policy()
+        other_z = next(z for z in policy.z_options if not math.isclose(z, policy.z))
+
+        before = at.dataframe[0].value.copy()
+        at.select_slider[0].set_value(other_z).run()
+
+        assert not at.exception
+        after = at.dataframe[0].value
+        assert not before["Fill rate"].equals(after["Fill rate"])

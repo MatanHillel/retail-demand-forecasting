@@ -10,10 +10,24 @@ from __future__ import annotations
 
 import matplotlib.figure
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import streamlit as st
 
-from pipeline.eda.style import PALETTE, apply_style, finalize, hatch_partial
+from pipeline.config import MODEL_IDS
+from pipeline.eda.style import (
+    ABC_COLORS,
+    BASE_FONT_SIZE,
+    DEFAULT_FOOTNOTE,
+    PALETTE,
+    apply_style,
+    finalize,
+    hatch_partial,
+)
+
+#: Same colour per model id everywhere a chart needs one, in :data:`MODEL_IDS` order (§35A.2 — a
+#: fixed mapping, same reasoning as :data:`pipeline.eda.style.ABC_COLORS`).
+MODEL_COLORS: dict[str, str] = dict(zip(MODEL_IDS, PALETTE, strict=False))
 
 
 def monthly_demand_line(monthly_df: pd.DataFrame) -> matplotlib.figure.Figure:
@@ -148,4 +162,229 @@ def product_history_chart(
         xlabel="Month",
         ylabel="Units sold (units)",
     )
+    return fig
+
+
+def _footnote(fig: matplotlib.figure.Figure) -> None:
+    """Source footnote for multi-axes figures :func:`finalize` cannot furnish (it only touches the
+    figure's first axes)."""
+    fig.text(
+        0.01,
+        0.01,
+        DEFAULT_FOOTNOTE,
+        ha="left",
+        va="bottom",
+        fontsize=BASE_FONT_SIZE - 3,
+        color="#444444",
+    )
+
+
+def model_line_chart(
+    df: pd.DataFrame,
+    value_col: str,
+    *,
+    x_col: str,
+    ylabel: str,
+    title: str,
+    models: tuple[str, ...] = MODEL_IDS,
+) -> matplotlib.figure.Figure:
+    """One line per candidate model, coloured by :data:`MODEL_COLORS` (Screen 4 by-month /
+    back-test-consistency tabs, PRD §33.4)."""
+    apply_style()
+    fig, ax = plt.subplots()
+    for model_id in models:
+        sub = df.loc[df["model"] == model_id].sort_values(x_col)
+        if sub.empty:
+            continue
+        ax.plot(
+            sub[x_col],
+            sub[value_col],
+            marker="o",
+            label=model_id,
+            color=MODEL_COLORS.get(model_id),
+        )
+    ax.tick_params(axis="x", rotation=90)
+    ax.legend(loc="best", fontsize=8)
+    finalize(fig, title=title, xlabel="Month", ylabel=ylabel)
+    return fig
+
+
+def model_abc_grouped_bars(
+    df: pd.DataFrame,
+    value_col: str,
+    *,
+    ylabel: str,
+    title: str,
+    models: tuple[str, ...] = MODEL_IDS,
+    abc_classes: tuple[str, ...] = ("A", "B", "C"),
+) -> matplotlib.figure.Figure:
+    """Grouped bars, one group per model, bars coloured by ABC class (Screen 4 by-ABC tab, §23,
+    §35A.2 — ABC classes always the same three colours)."""
+    apply_style()
+    fig, ax = plt.subplots()
+    positions = np.arange(len(models))
+    width = 0.8 / len(abc_classes)
+    indexed = df.set_index(["model", "abc_class"])[value_col]
+    for offset, abc_class in enumerate(abc_classes):
+        values = [indexed.get((model_id, abc_class), float("nan")) for model_id in models]
+        ax.bar(
+            positions + (offset - (len(abc_classes) - 1) / 2) * width,
+            values,
+            width=width,
+            label=f"ABC {abc_class}",
+            color=ABC_COLORS.get(abc_class),
+        )
+    ax.set_xticks(positions)
+    ax.set_xticklabels(models, rotation=45, ha="right")
+    ax.legend(loc="best")
+    finalize(fig, title=title, xlabel="Model", ylabel=ylabel)
+    return fig
+
+
+def actual_vs_forecast_monthly(
+    rows_df: pd.DataFrame, *, model_id: str
+) -> matplotlib.figure.Figure:
+    """Monthly totals, actual vs forecast, for one model (Screen 4 actual-vs-forecast tab)."""
+    apply_style()
+    pred_col = f"pred_{model_id}"
+    monthly = (
+        rows_df.groupby("target_month", as_index=False)[["actual", pred_col]]
+        .sum()
+        .sort_values("target_month")
+    )
+    fig, ax = plt.subplots()
+    ax.plot(
+        monthly["target_month"], monthly["actual"], marker="o", color=PALETTE[0], label="Actual"
+    )
+    ax.plot(
+        monthly["target_month"], monthly[pred_col], marker="o", color=PALETTE[1], label="Forecast"
+    )
+    ax.tick_params(axis="x", rotation=90)
+    ax.legend(loc="best")
+    finalize(
+        fig,
+        title=f"Monthly totals, actual vs forecast — {model_id}",
+        xlabel="Month",
+        ylabel="Units sold (units)",
+    )
+    return fig
+
+
+def actual_vs_forecast_scatter(
+    rows_df: pd.DataFrame, *, model_id: str, sample_size: int, seed: int
+) -> matplotlib.figure.Figure:
+    """Log-log scatter of a product-month sample, actual vs forecast (Screen 4)."""
+    apply_style()
+    pred_col = f"pred_{model_id}"
+    sample = rows_df.loc[(rows_df["actual"] > 0) & (rows_df[pred_col] > 0), ["actual", pred_col]]
+    if len(sample) > sample_size:
+        sample = sample.sample(n=sample_size, random_state=seed)
+
+    fig, ax = plt.subplots()
+    ax.scatter(sample["actual"], sample[pred_col], alpha=0.35, s=12, color=PALETTE[0])
+    if not sample.empty:
+        lower = min(sample["actual"].min(), sample[pred_col].min())
+        upper = max(sample["actual"].max(), sample[pred_col].max())
+        ax.plot(
+            [lower, upper],
+            [lower, upper],
+            color=PALETTE[7],
+            linestyle="--",
+            linewidth=1,
+            label="y = x",
+        )
+        ax.legend(loc="best")
+    ax.set_xscale("log")
+    finalize(
+        fig,
+        title=f"Product-month sample, actual vs forecast — {model_id} (n={len(sample):,})",
+        xlabel="Actual units (units, log scale)",
+        ylabel="Forecast units (units)",
+        log_y=True,
+    )
+    return fig
+
+
+def inventory_kpi_bar_pairs(
+    rows: pd.DataFrame, *, series_col: str, metrics: tuple[tuple[str, str], ...], title: str
+) -> matplotlib.figure.Figure:
+    """One subplot per KPI, bars are ``rows`` grouped by ``series_col`` (Screen 5 KPI bar pairs,
+    §30). ``rows`` has one row per series with the KPI columns already computed."""
+    apply_style()
+    fig, axes = plt.subplots(1, len(metrics), figsize=(3.1 * len(metrics), 4.2))
+    if len(metrics) == 1:
+        axes = [axes]
+    labels = rows[series_col].tolist()
+    colors = [PALETTE[i % len(PALETTE)] for i in range(len(labels))]
+    for ax, (col, label) in zip(axes, metrics, strict=True):
+        ax.bar(labels, rows[col], color=colors)
+        ax.set_title(label, fontsize=BASE_FONT_SIZE - 1)
+        ax.tick_params(axis="x", rotation=30, labelsize=BASE_FONT_SIZE - 3)
+    fig.suptitle(title, fontsize=BASE_FONT_SIZE + 1)
+    fig.tight_layout(rect=(0.0, 0.06, 1.0, 0.93))
+    _footnote(fig)
+    return fig
+
+
+def fill_rate_vs_excess_curve(
+    df: pd.DataFrame, *, series_col: str, series_values: tuple[str, ...]
+) -> matplotlib.figure.Figure:
+    """Fill rate vs excess units across the z options, one line per series (Screen 5, §25, §30)."""
+    apply_style()
+    fig, ax = plt.subplots()
+    for series in series_values:
+        sub = df.loc[df[series_col] == series].sort_values("z")
+        if sub.empty:
+            continue
+        color = MODEL_COLORS.get(series)
+        ax.plot(sub["fill_rate"], sub["excess_units"], marker="o", label=series, color=color)
+        for _, row in sub.iterrows():
+            ax.annotate(
+                f"z={row['z']:g}",
+                (row["fill_rate"], row["excess_units"]),
+                fontsize=7,
+                textcoords="offset points",
+                xytext=(4, 4),
+            )
+    ax.legend(loc="best")
+    finalize(
+        fig,
+        title="Fill rate vs excess units across z options",
+        xlabel="Fill rate (share of demand fulfilled)",
+        ylabel="Excess units (units)",
+    )
+    return fig
+
+
+def inventory_group_bars(
+    panels: tuple[tuple[str, pd.DataFrame], ...],
+    *,
+    metric_col: str,
+    group_col: str,
+    group_order: list[str],
+    ylabel: str,
+    title: str,
+    color_map: dict[str, str] | None = None,
+) -> matplotlib.figure.Figure:
+    """One subplot per ``panels`` entry (e.g. per model), bars across ``group_order`` (by-month /
+    by-ABC breakdowns, Screen 5, §30). ``color_map`` gives per-group bar colours (ABC colours for
+    the by-ABC breakdown); omitted for the by-month breakdown, which uses the default palette."""
+    apply_style()
+    fig, axes = plt.subplots(1, len(panels), figsize=(5.5 * len(panels), 4.2), sharey=True)
+    if len(panels) == 1:
+        axes = [axes]
+    for ax, (label, sub) in zip(axes, panels, strict=True):
+        indexed = sub.set_index(group_col)[metric_col]
+        values = [indexed.get(group, float("nan")) for group in group_order]
+        if color_map:
+            colors = [color_map.get(group, PALETTE[0]) for group in group_order]
+        else:
+            colors = PALETTE[0]
+        ax.bar(group_order, values, color=colors)
+        ax.set_title(label, fontsize=BASE_FONT_SIZE - 1)
+        ax.tick_params(axis="x", rotation=45, labelsize=BASE_FONT_SIZE - 3)
+    axes[0].set_ylabel(ylabel)
+    fig.suptitle(title, fontsize=BASE_FONT_SIZE + 1)
+    fig.tight_layout(rect=(0.0, 0.06, 1.0, 0.9))
+    _footnote(fig)
     return fig
