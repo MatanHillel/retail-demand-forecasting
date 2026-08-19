@@ -1,6 +1,6 @@
 # MVP acceptance report
 
-*Generated:* 2026-08-19T18:32:06.250144+00:00 · *Checklist:* PRD §49, 22 criteria
+*Generated:* 2026-08-19T19:54:44.075329+00:00 · *Checklist:* PRD §49, 22 criteria
 
 *Audited run:* `20260818T095823Z-fdcd09` · *status:* `success` · *mode:* `no-llm` · *finished:* 2026-08-18T09:58:25.335261+00:00
 
@@ -42,8 +42,8 @@
 | 18 | All required artifacts saved under their exact names | `paths.REQUIRED_ARTIFACTS` exist non-empty; `run_log.json` artifacts map and warnings | **PASS** | 8 of 8 artifacts exist non-empty (clean_data.csv, features.csv, model.joblib, eda_report.html, insights.md, dataset_contract.json, evaluation_report.md, model_card.md); 2 of them are registered in run 20260818T095823Z-fdcd09's artifacts map; promote() warnings about unwritten artifacts: 0 |
 | 19 | Model-card sections and the evaluation report's champion trace | `## n.` headings in `model_card.md`; the champion id present in `evaluation_report.md` | **PASS** | artifacts/reports/model_card.md carries 5 numbered sections ['Model purpose', 'Training data summary', 'Metrics', 'Limitations', 'Ethical considerations'] (required 5); artifacts/reports/evaluation_report.md names the champion M2_gbm_poisson: True |
 | 20 | README with the required sections | `README.md` exists; `test_readme.py` (US-36) passes | **PASS** | README.md present=True; test_readme.py passed |
-| 21 | PR-based history with branch protection | `git log --merges` for pull-request merges; `docs/branch_protection.md`; `gh api` | **MANUAL** | git log --merges: 33 merge commit(s) referencing a pull request (latest: dc6f7d6 Merge pull request #34 from MatanHillel/fix-dotenv-loading); docs/branch_protection.md present=True; branch protection on main: gh unavailable or unauthorised — not readable from here — confirm the GitHub setting in the web UI |
-| 22 | Presentation (10–12 slides) and demo video (≤ 5 min) | `docs/presentation.pptx` via python-pptx; `docs/demo.mp4` via ffprobe | **PENDING** | docs/presentation.pptx and docs/demo.mp4 do not exist yet — US-38 and US-39 produce them |
+| 21 | PR-based history with branch protection | `git log --merges` for pull-request merges; `docs/branch_protection.md`; `gh api` | **MANUAL** | git log --merges: 34 merge commit(s) referencing a pull request (latest: faa7208 Merge pull request #35 from MatanHillel/ai-42-us-37-mvp-acceptance); docs/branch_protection.md present=True; branch protection on main: gh unavailable or unauthorised — not readable from here — confirm the GitHub setting in the web UI |
+| 22 | Presentation (10–12 slides) and demo video (≤ 5 min) | `docs/presentation.pptx` via python-pptx; `docs/demo.mp4` via ffprobe | **PENDING** | docs/presentation.pptx: 12 slides (allowed 10-12); docs/demo.mp4: unmeasurable s (allowed <= 300) — one deliverable is still missing or unreadable |
 
 ## What the statuses mean
 

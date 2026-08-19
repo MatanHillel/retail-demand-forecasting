@@ -354,6 +354,20 @@ python scripts/mvp_acceptance_check.py --skip-slow # without the two-full-pipeli
 
 What each clause checks, and what the four verdicts mean: [`docs/acceptance.md`](docs/acceptance.md).
 
+The business presentation is generated from the artifacts rather than maintained by hand, for the
+same reason every other number here is (§14): a deck edited in PowerPoint states figures that
+nothing computed, and goes stale the moment a model is retrained.
+
+```bash
+python scripts/build_presentation.py     # -> docs/presentation.pptx + docs/presentation_notes.md
+python scripts/capture_screens.py        # re-capture docs/img/screens/ from the running app
+```
+
+`build_presentation.py` refuses to build unless `run_log.json` says the audited run succeeded, and
+it names on slide 1 any input table that run did not itself write. The deck:
+[`docs/presentation.pptx`](docs/presentation.pptx), notes:
+[`docs/presentation_notes.md`](docs/presentation_notes.md).
+
 ---
 
 ## 10. Limitations & ethics

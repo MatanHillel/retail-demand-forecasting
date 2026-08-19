@@ -186,6 +186,10 @@ python -m pytest -q
 python -m pytest -q -m "not slow"
 python -m ruff check src tests
 python scripts/mvp_acceptance_check.py        # §49 checklist -> acceptance_report.md
+
+# deliverables (§53) — generated from the artifacts, never hand-edited
+python scripts/build_presentation.py          # -> docs/presentation.pptx + presentation_notes.md
+python scripts/capture_screens.py             # -> docs/img/screens/*.png (needs Chrome + selenium)
 ```
 
 Written as `python -m <tool>` deliberately: invoking `pytest` / `ruff` / `streamlit` as bare

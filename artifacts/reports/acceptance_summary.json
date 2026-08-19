@@ -128,19 +128,19 @@
     },
     {
       "criterion": "PR-based history with branch protection",
-      "evidence": "git log --merges: 33 merge commit(s) referencing a pull request (latest: dc6f7d6 Merge pull request #34 from MatanHillel/fix-dotenv-loading); docs/branch_protection.md present=True; branch protection on main: gh unavailable or unauthorised \u2014 not readable from here \u2014 confirm the GitHub setting in the web UI",
+      "evidence": "git log --merges: 34 merge commit(s) referencing a pull request (latest: faa7208 Merge pull request #35 from MatanHillel/ai-42-us-37-mvp-acceptance); docs/branch_protection.md present=True; branch protection on main: gh unavailable or unauthorised \u2014 not readable from here \u2014 confirm the GitHub setting in the web UI",
       "number": 21,
       "status": "MANUAL"
     },
     {
       "criterion": "Presentation (10\u201312 slides) and demo video (\u2264 5 min)",
-      "evidence": "docs/presentation.pptx and docs/demo.mp4 do not exist yet \u2014 US-38 and US-39 produce them",
+      "evidence": "docs/presentation.pptx: 12 slides (allowed 10-12); docs/demo.mp4: unmeasurable s (allowed <= 300) \u2014 one deliverable is still missing or unreadable",
       "number": 22,
       "status": "PENDING"
     }
   ],
   "failed": [],
-  "generated_at": "2026-08-19T18:32:06.250144+00:00",
+  "generated_at": "2026-08-19T19:54:44.075329+00:00",
   "run_id": "20260818T095823Z-fdcd09",
   "run_status": "success",
   "total": 22
