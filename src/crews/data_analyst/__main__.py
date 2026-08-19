@@ -15,12 +15,16 @@ import sys
 
 from crews.common import MissingAPIKeyError, llm_model_name, require_api_key
 from crews.data_analyst.crew import run_data_analyst_crew
+from crews.environment import load_env_file
 from pipeline.run_context import RunContext
 from pipeline.validation import FlowValidationError
 
 
 def main(argv: list[str] | None = None) -> int:
     """Run the crew, returning the process exit code."""
+    # Before the credential check, so a key that lives only in .env is found. A variable already
+    # set in the environment still wins (load_env_file, override=False).
+    load_env_file()
     try:
         credential = require_api_key()
     except MissingAPIKeyError as error:

@@ -125,6 +125,15 @@ def _resolve_mode(args: argparse.Namespace) -> str | None:
 def main(argv: list[str] | None = None) -> int:
     """Run the Flow, returning the process exit code."""
     args = _parse_args(argv)
+    # Before any credential is looked for. crews.environment imports no CrewAI, so this is free
+    # even for --no-llm, and both modes then see an identical environment.
+    from crews.environment import load_env_file
+
+    env_file = load_env_file()
+    if env_file:
+        # The path is safe to print and answers the question a 401 always raises: which source
+        # was actually used. An already-exported variable still wins over this file.
+        print(f"loaded environment file: {env_file}")
     mode = _resolve_mode(args)
     if mode is None:
         return 2

@@ -104,6 +104,23 @@ cp .env.example .env               # fill in OPENAI_API_KEY or ANTHROPIC_API_KEY
 python -m pipeline                 # runs the same ten steps + two crew narrative kickoffs
 ```
 
+`.env` is read at the process entry point by `python-dotenv`, and **an environment variable that
+is already set always wins over the file** (`load_dotenv(override=False)`). This matters more than
+it looks: a stale `OPENAI_API_KEY` exported in your shell, your Windows user profile, or the
+launcher that started your editor silently takes precedence, and `.env` is then never consulted at
+all. The symptom is indistinguishable from a bad key in `.env` — the provider simply answers
+`401 Unauthorized`. If you get a 401 while the key in `.env` is known-good, check for a leftover
+variable first:
+
+```bash
+python -c "import os; print('set in environment:', 'OPENAI_API_KEY' in os.environ)"
+# PowerShell: Remove-Item Env:OPENAI_API_KEY     (this session only)
+# permanent:  setx OPENAI_API_KEY ""             then restart the terminal/editor
+```
+
+Startup prints which file it read (`loaded environment file: …`), and the mode line names the
+*variable* the credential came from — never its value.
+
 Without a key, `python -m pipeline` prints `LLM mode requires an API key — falling back to
 --no-llm` and runs deterministically anyway (exit 0); `--llm` instead requires the key and exits 2
 without it. Spend is capped by `model_config.yaml → llm.max_cost_usd` (overridable with
