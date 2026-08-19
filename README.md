@@ -331,6 +331,7 @@ to every candidate, including baselines; there is no `--force-champion` flag.
 | `tests/test_inventory.py` | σ, safety stock, target, simulation |
 | `tests/test_flow.py`, `tests/test_flow_no_llm.py` | graceful failure path produces `validation_report.json` |
 | `tests/test_determinism.py` | two runs identical |
+| `tests/test_acceptance_script.py` | the §49 acceptance audit checks every clause and exits non-zero on a FAIL |
 
 `main` is protected: every change merges through a PR (template: What / Why / How tested) with at
 least one reviewer and four required, green CI checks (`lint-test`, `pipeline-no-llm`,
@@ -342,6 +343,16 @@ make ci-local          # or scripts/ci_local.sh on Windows without GNU make
 
 Full contributor workflow: [`docs/contributing.md`](docs/contributing.md). Branch-protection
 settings applied to `main`: [`docs/branch_protection.md`](docs/branch_protection.md).
+
+The MVP acceptance criteria (§49) are audited mechanically — one row per clause, with the evidence
+behind each verdict, in `artifacts/reports/acceptance_report.md`:
+
+```bash
+make acceptance                                   # or: python scripts/mvp_acceptance_check.py
+python scripts/mvp_acceptance_check.py --skip-slow # without the two-full-pipeline determinism test
+```
+
+What each clause checks, and what the four verdicts mean: [`docs/acceptance.md`](docs/acceptance.md).
 
 ---
 

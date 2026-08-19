@@ -36,6 +36,7 @@ Nothing in the project builds a path by hand. Import the constant.
 | `QUARTERLY_METRICS`, `QUARTERLY_LIMITATION` | `artifacts/reports/evaluation_tables/…` |
 | `DATASET_CONTRACT` ★ | `artifacts/contracts/dataset_contract.json` |
 | `VALIDATION_REPORT`, `RUN_LOG` | `artifacts/…` |
+| `ACCEPTANCE_REPORT`, `ACCEPTANCE_SUMMARY` | `artifacts/reports/…` — the §49 audit's own two outputs (US-37); written outside any `RunContext`, so never through `ctx.out()` |
 | `FIGURES_DIR`, `EDA_TABLES_DIR`, `EVAL_TABLES_DIR`, `LOGS_DIR`, `FIXTURES_DIR` | directories |
 | `REQUIRED_ARTIFACTS` | tuple of the eight ★ artifacts (PRD §41) |
 
