@@ -389,6 +389,9 @@ API_KEY_VARIABLES: tuple[str, ...]      # ("OPENAI_API_KEY", "ANTHROPIC_API_KEY"
 MODEL_VARIABLE: str                     # fallback name; llm.model_env_var is what is in force
 DEFAULT_MODEL, NO_API_KEY_MESSAGE
 MissingAPIKeyError(RuntimeError)
+load_env_file() -> str | None           # load .env at an entry point; returns the path read
+                                        # override=False: an already-set variable always wins
+                                        # no-op when RDF_DISABLE_DOTENV is set (tests)
 api_key_variable() -> str | None        # the variable NAME; the value is never returned
 require_api_key() -> str                # raises MissingAPIKeyError
 model_variable() -> str                 # model_config.yaml -> llm.model_env_var

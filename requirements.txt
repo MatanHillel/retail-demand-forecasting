@@ -19,6 +19,10 @@ joblib==1.4.2
 Jinja2==3.1.4
 openpyxl==3.1.5
 requests==2.32.3
+# Reads config/ credentials from a local .env at the process entry points. Already arrived
+# transitively (crewai -> litellm), but src/ now imports it directly, so it is pinned here
+# rather than left to another package's resolution (PRD §40).
+python-dotenv==1.2.2
 
 # --- app -------------------------------------------------------------------
 streamlit==1.39.0

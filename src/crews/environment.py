@@ -24,6 +24,8 @@ from __future__ import annotations
 
 import os
 
+from dotenv import find_dotenv, load_dotenv
+
 from pipeline.config import load_model_config
 
 #: Credentials the crews accept, in the order they are tried. The provider is chosen entirely by
@@ -53,6 +55,39 @@ class MissingAPIKeyError(RuntimeError):
 
     def __init__(self, message: str = NO_API_KEY_MESSAGE) -> None:
         super().__init__(message)
+
+
+#: Set this to any non-empty value to stop :func:`load_env_file` reading a ``.env`` at all. The
+#: test suite sets it (``tests/conftest.py``), so a developer's real credential can never leak into
+#: a test run and make a "no credential" test pass for the wrong reason.
+ENV_FILE_DISABLE_VARIABLE = "RDF_DISABLE_DOTENV"
+
+
+def load_env_file() -> str | None:
+    """Load a local ``.env`` into the environment; return the file read, or ``None``.
+
+    Call this **once, at a process entry point**, before anything asks for a credential. It is not
+    called at import time on purpose: importing a module must never mutate the environment out
+    from under a caller (``docs/interfaces.md`` §6 rule 10 is the same instinct).
+
+    **A variable already present in the environment always wins.** ``override=False`` is
+    python-dotenv's default and is passed explicitly here because it is the invariant that
+    matters, not a default worth inheriting silently. The consequence is worth stating plainly:
+    an exported ``OPENAI_API_KEY`` — including a stale one left over in a shell, a launcher or a
+    Windows user profile — silently takes precedence over the value in ``.env``, and the file is
+    then dead weight. That failure mode looks exactly like a bad key in ``.env`` (the provider
+    answers 401), which is why :func:`api_key_variable` reports the variable *name* it used.
+
+    The value is not read into this process: :func:`load_dotenv` writes it into ``os.environ`` and
+    LiteLLM reads it back from there. Nothing here returns, logs or stores a credential.
+    """
+    if (os.environ.get(ENV_FILE_DISABLE_VARIABLE) or "").strip():
+        return None
+    path = find_dotenv(usecwd=True)
+    if not path:
+        return None
+    load_dotenv(path, override=False)
+    return path
 
 
 def api_key_variable() -> str | None:
