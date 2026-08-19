@@ -16,6 +16,23 @@ set -euo pipefail
 CI_OUT="${CI_OUT:-.ci-local}"
 PY="${PY:-python}"
 
+# The tracked state of the two directories a run must never write into.
+tracked_state() { git status --porcelain -- artifacts data/processed; }
+
+# The workflow uses `git diff --exit-code`, which is exact on a pristine CI checkout. Locally the
+# working tree may already be dirty — the test suite itself rewrites
+# artifacts/validation_report.json (tests/test_crew_data_scientist.py) — so the same property,
+# "this run wrote nothing into the checkout", is tested by comparing before against after.
+assert_checkout_unchanged() {
+  local before="$1" what="$2" after
+  after="$(tracked_state)"
+  if [ "$before" != "$after" ]; then
+    echo "FAILED: $what wrote into the checkout:" >&2
+    echo "$after" >&2
+    return 1
+  fi
+}
+
 banner() { printf '\n== %s %s\n' "$1" "$(printf '=%.0s' $(seq 1 $((60 - ${#1}))))"; }
 
 job_lint_test() {
@@ -27,14 +44,16 @@ job_lint_test() {
 
 job_pipeline_no_llm() {
   banner "pipeline-no-llm"
+  local before; before="$(tracked_state)"
   "$PY" -m pipeline --no-llm --sample --skip-tuning --out-root "$CI_OUT/pipeline"
   "$PY" scripts/ci_check_success_run.py "$CI_OUT/pipeline"
-  git diff --exit-code -- artifacts data/processed
+  assert_checkout_unchanged "$before" "the run"
 }
 
 job_failure_path() {
   banner "failure-path"
-  local code=0
+  local code=0 before
+  before="$(tracked_state)"
   set +e
   "$PY" -m pipeline --no-llm --skip-tuning \
     --raw tests/fixtures/raw_sample_missing_quantity.csv \
@@ -43,7 +62,7 @@ job_failure_path() {
   set -e
   cat "$CI_OUT-stderr.txt"
   "$PY" scripts/ci_check_failure_run.py "$CI_OUT/failure" "$code" "$CI_OUT-stderr.txt"
-  git diff --exit-code -- artifacts data/processed
+  assert_checkout_unchanged "$before" "the failed run (PRD 39)"
 }
 
 job_determinism() {
