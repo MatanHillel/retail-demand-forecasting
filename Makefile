@@ -1,4 +1,4 @@
-.PHONY: install test test-fast lint ci-local ci-lint-test ci-pipeline ci-failure-path ci-determinism clean-ci
+.PHONY: install test test-fast lint acceptance ci-local ci-lint-test ci-pipeline ci-failure-path ci-determinism clean-ci
 
 # Create the environment first:  python3.11 -m venv .venv && . .venv/bin/activate
 # (Windows PowerShell:           py -3.11 -m venv .venv; .\.venv\Scripts\Activate.ps1)
@@ -20,6 +20,12 @@ test-fast:
 
 lint:
 	ruff check src tests
+
+# The PRD §49 checklist, audited mechanically (US-37). Read-only apart from its own two
+# reports; exits non-zero as soon as one criterion FAILs. Add --skip-slow to skip the
+# determinism test, which runs the whole --no-llm pipeline twice.
+acceptance:
+	python scripts/mvp_acceptance_check.py
 
 # --------------------------------------------------------------------------
 # ci-local — the same four jobs .github/workflows/ci.yml runs, in the same order (US-35).

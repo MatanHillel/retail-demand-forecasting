@@ -81,6 +81,13 @@ DATASET_CONTRACT: Path = CONTRACTS_DIR / "dataset_contract.json"  # required art
 VALIDATION_REPORT: Path = ARTIFACTS_DIR / "validation_report.json"
 RUN_LOG: Path = ARTIFACTS_DIR / "run_log.json"
 
+# --- MVP acceptance audit (US-37) ------------------------------------------
+# Written by scripts/mvp_acceptance_check.py, which is a post-run audit and not a pipeline step:
+# it opens no RunContext, so these are the only two files it writes and they never go through
+# staging.
+ACCEPTANCE_REPORT: Path = REPORTS_DIR / "acceptance_report.md"
+ACCEPTANCE_SUMMARY: Path = REPORTS_DIR / "acceptance_summary.json"
+
 # The eight artifacts required by the course brief, under their exact names (PRD §41).
 REQUIRED_ARTIFACTS: tuple[Path, ...] = (
     CLEAN_DATA,
