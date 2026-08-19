@@ -110,6 +110,7 @@ ctx.warn(message)                          # safe anywhere; redacted
 ctx.record_data(file=, sha256=, rows=, columns=)
 ctx.record_metrics(dict)
 ctx.record_artifact(key, path)
+ctx.record_artifact_checksums()            # ← call AFTER promote() — fingerprints ctx.artifacts
 ctx.out(path) -> Path                      # ← EVERY artifact write goes through this
 ctx.promote() -> list[Path]                # refuses when status == "failed"
 ctx.discard_staging()
@@ -122,7 +123,15 @@ ctx.logger, ctx.base_dir, ctx.staging_dir, ctx.current_step
 
 `run_id, started_at, finished_at, mode, status, seed, data{file,sha256,rows,columns},
 config_snapshot, versions{python,pandas,numpy,sklearn,crewai,streamlit}, steps[], warnings[],
-metrics{}, champion|null, errors[{step,type,message,traceback}], artifacts{key: path}`
+metrics{}, champion|null, errors[{step,type,message,traceback}], artifacts{key: path},
+artifact_checksums{key: {path, bytes, sha256}}`
+
+`artifact_checksums` (US-34) is a field of its own, never a retyping of `artifacts` — the app and
+CI already read `artifacts` as a plain `{key: path}` map. `record_artifact_checksums()`
+fingerprints every path currently in `ctx.artifacts`; call it **after** `ctx.promote()` (flow step
+10, `flow.steps.publish`), never before — a call before promotion fingerprints the *previous* run's
+files at the final locations (§6 rule 7), and a call before staging even started skips missing
+staged files silently rather than raising.
 
 `status` is **`running` | `success` | `failed`** — three values, not two. `running` persists on disk
 whenever a process is killed before `finish()` (Ctrl-C, OOM, CI timeout), so every reader must
@@ -742,6 +751,7 @@ handle_failure(state, ctx, error, *, keep_failed=True) -> Path | None
 
 # pipeline.__main__  (imports flow.main inside main() only — §6 rule 10)
 main(argv=None) -> int      # python -m pipeline --no-llm [--skip-tuning] [--raw <path>|--sample]
+                            #   [--out-root <dir>] [--keep-failed|--no-keep-failed]
 
 # added by US-31 to existing modules (backward compatible)
 pipeline.sigma.run_sigma(backtest_df, abc_train_df, cfg, ctx) -> (table, summary)

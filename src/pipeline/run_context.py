@@ -24,6 +24,7 @@ Schema of ``run_log.json``::
     champion         {...} | null
     errors           [{step, type, message, traceback}]
     artifacts        {key: repo-relative path}
+    artifact_checksums {key: {path, bytes, sha256}}
 
 Failure handling (PRD §39): artifacts are written through :meth:`RunContext.out`, which redirects
 them into ``artifacts/_staging/<run_id>/`` when the context was started with ``staging=True``.
@@ -39,6 +40,7 @@ not import the package — so ``--no-llm`` runs stay free of any LLM import.
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import importlib.metadata
 import json
 import logging
@@ -255,6 +257,7 @@ class RunContext(BaseModel):
     champion: dict[str, Any] | None = None
     errors: list[dict[str, Any]] = Field(default_factory=list)
     artifacts: dict[str, str] = Field(default_factory=dict)
+    artifact_checksums: dict[str, dict[str, Any]] = Field(default_factory=dict)
 
     # Everything below is bookkeeping that must never reach run_log.json.
     _base_dir: Path = PrivateAttr(default=paths.PROJECT_ROOT)
@@ -406,6 +409,31 @@ class RunContext(BaseModel):
             return Path(path).relative_to(self._base_dir).as_posix()
         except ValueError:
             return Path(path).as_posix()
+
+    def record_artifact_checksums(self) -> None:
+        """Fingerprint every artifact recorded so far: byte size and a SHA-256 digest.
+
+        A checksum is a fingerprint of a file used to prove two copies are exactly the same.
+        Must run against the *final* locations, so call this after :meth:`promote` (issue §8) —
+        calling it on a fresh staging area, or before promotion, would fingerprint the *previous*
+        run's files (``docs/interfaces.md`` §6 rule 7). Skips a recorded path that is missing so a
+        partially-populated context stays inspectable rather than raising.
+        """
+        checksums: dict[str, dict[str, Any]] = {}
+        for key, relative in self.artifacts.items():
+            resolved = self._base_dir / relative
+            if not resolved.is_file():
+                continue
+            digest = hashlib.sha256()
+            with resolved.open("rb") as handle:
+                while chunk := handle.read(1 << 20):
+                    digest.update(chunk)
+            checksums[key] = {
+                "path": relative,
+                "bytes": resolved.stat().st_size,
+                "sha256": digest.hexdigest(),
+            }
+        self.artifact_checksums = checksums
 
     # -- staging & promotion (PRD §39) --------------------------------------
     def out(self, path: Path | str) -> Path:

@@ -170,6 +170,44 @@ def test_record_metrics_artifacts_and_data(ctx: RunContext) -> None:
 
 
 # --------------------------------------------------------------------------
+# artifact checksums (US-34, PRD §40)
+# --------------------------------------------------------------------------
+def test_record_artifact_checksums_fingerprints_every_recorded_artifact(ctx: RunContext) -> None:
+    import hashlib
+
+    final = ctx.base_dir / "data" / "processed" / "clean_data.csv"
+    final.parent.mkdir(parents=True, exist_ok=True)
+    final.write_text("stock_code,month\nA,2011-01\n", encoding="utf-8")
+    ctx.record_artifact("clean_data", final)
+
+    ctx.record_artifact_checksums()
+
+    entry = ctx.artifact_checksums["clean_data"]
+    assert entry["path"] == "data/processed/clean_data.csv"
+    assert entry["bytes"] == final.stat().st_size
+    assert entry["sha256"] == hashlib.sha256(final.read_bytes()).hexdigest()
+
+
+def test_record_artifact_checksums_skips_a_missing_file(ctx: RunContext) -> None:
+    ctx.record_artifact("never_written", ctx.base_dir / "artifacts" / "forecasts" / "ghost.csv")
+    ctx.record_artifact_checksums()
+    assert "never_written" not in ctx.artifact_checksums
+
+
+def test_artifact_checksums_reach_run_log_json(ctx: RunContext) -> None:
+    final = ctx.base_dir / "artifacts" / "forecasts" / "inventory_kpis.csv"
+    final.parent.mkdir(parents=True, exist_ok=True)
+    final.write_text("stock_code,kpi\nA,1\n", encoding="utf-8")
+    ctx.record_artifact("inventory_kpis", final)
+    ctx.record_artifact_checksums()
+    ctx.write_run_log()
+
+    log = read_run_log(ctx)
+    checksum = log["artifact_checksums"]["inventory_kpis"]
+    assert checksum["path"] == "artifacts/forecasts/inventory_kpis.csv"
+
+
+# --------------------------------------------------------------------------
 # failure path (PRD §39)
 # --------------------------------------------------------------------------
 def test_failed_step_marks_the_run_failed_and_re_raises(ctx: RunContext) -> None:
