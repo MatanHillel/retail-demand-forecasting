@@ -1,0 +1,31 @@
+cff-version: 1.2.0
+message: >-
+  If you use this repository, please cite both the software (this repository) and the underlying
+  dataset it analyses (Chen, 2019 — see preferred-citation, and DATA_LICENSE.md for the full
+  attribution terms).
+title: Retail Demand Forecasting & Inventory Planning System
+type: software
+authors:
+  - family-names: Fogel
+    given-names: Daniel B.
+  - family-names: Hillel
+    given-names: Matan
+  - family-names: Hll
+    given-names: Dor
+license: MIT
+repository-code: https://github.com/danielbfogel-lgtm/retail-demand-forecasting
+preferred-citation:
+  type: data
+  title: "Online Retail II"
+  authors:
+    - family-names: Chen
+      given-names: Daqing
+  year: 2019
+  publisher:
+    name: UCI Machine Learning Repository
+  doi: 10.24432/C5CG6D
+  license: CC-BY-4.0
+  notes: >-
+    See also Chen, D., Sain, S. L., & Guo, K. (2012). Data mining for the online retail industry:
+    A case study of RFM model-based customer segmentation using data mining. Journal of Database
+    Marketing & Customer Strategy Management, 19(3), 197-208.
