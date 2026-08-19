@@ -26,6 +26,14 @@ dist/
 coverage.xml
 htmlcov/
 
+# --- local CI output (make ci-local / scripts/ci_local.sh, US-35) ------------
+# Each job writes into its own --out-root here so the working tree's artifacts/
+# and data/processed/ are never touched.
+.ci-local/
+.ci-local-stderr.txt
+ci_out*/
+ci_stderr.txt
+
 # --- secrets ---------------------------------------------------------------
 .env
 .env.local

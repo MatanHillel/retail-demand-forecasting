@@ -89,8 +89,11 @@ RunContext.start(mode="no-llm", *, staging=False, seed=None, base_dir=None) -> R
 ```
 
 `start()` allocates the run id, seeds randomness, snapshots configuration and records library
-versions. `base_dir` exists **only** so tests can redirect `artifacts/` and `logs/` to a temporary
-folder — production callers never pass it.
+versions. `base_dir` redirects `artifacts/`, `logs/` and `data/processed/` to another folder — for
+tests, and for `--out-root` at the CLI (US-34); production callers leave it alone. **It is always
+stored absolute** (`Path(base_dir).resolve()`, US-35): `out()` re-homes a *relative* path onto the
+base directory, so a relative `base_dir` would be applied twice and every artifact would land
+under `ci_out/ci_out/…`, where the next step's reader does not look.
 
 `start()` does **not** write `run_log.json`. Nothing reaches that file until someone calls
 `write_run_log()` or `finish()`. A run that dies before its first write therefore leaves the

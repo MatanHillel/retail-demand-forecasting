@@ -1,5 +1,17 @@
 name: ci
 
+# Four jobs, four required status checks on protected `main` (US-35, PRD §42, §54):
+#
+#   lint-test        ruff + pip check + the unit suite            (gate for everything else)
+#   pipeline-no-llm  the real pipeline, end to end on the sample  (does it still run?)
+#   failure-path     a deliberately broken input                  (does it stop *gracefully*?)
+#   determinism      the same pipeline twice, compared            (are the numbers reproducible?)
+#
+# The three heavy jobs all `needs: lint-test`, so they start together once the fast gate is green
+# and their wall clock overlaps. No job needs a secret: CI runs the pipeline in `--no-llm` mode,
+# which imports no LLM class at all (PRD §37), and reads only the committed sample fixture — the
+# raw dataset is never downloaded here (§42).
+
 on:
   pull_request:
   push:
@@ -9,10 +21,57 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
+env:
+  # Disables hash randomisation so anything depending on iteration order fails reproducibly rather
+  # than intermittently. Note this cannot affect an interpreter that is already running, and each
+  # run re-exports it with the configured seed for its own children (`set_global_seed`), so no job
+  # asserts that the pipeline process sees "0" — see docs/contributing.md.
+  PYTHONHASHSEED: "0"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
 jobs:
-  ci:
-    name: lint + tests (Python 3.11)
+  # ---------------------------------------------------------------- fast gate
+  lint-test:
+    name: lint-test
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      # The full pinned set, including crewai: nothing imports it in --no-llm mode, but
+      # `_package_versions()` reads its version from package *metadata*, and US-34's
+      # test_run_metadata.py fails on a null. Installing it needs no key and imports nothing.
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e .
+
+      - name: Lint
+        run: ruff check src tests
+
+      - name: Dependency consistency
+        run: pip check
+
+      - name: Unit tests
+        run: pytest -q -m "not slow" --maxfail=1 --durations=15
+
+  # ---------------------------------------------- the pipeline actually runs
+  pipeline-no-llm:
+    name: pipeline-no-llm
+    needs: lint-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
 
@@ -29,11 +88,121 @@ jobs:
           pip install -r requirements.txt
           pip install -e .
 
-      - name: Lint
-        run: ruff check src tests
+      # --skip-tuning: tuning rewrites config/model_config.yaml in place and would blow the time
+      # budget. --out-root keeps the run out of the checkout, so the artifact upload and the
+      # "repo is untouched" check below are both unambiguous.
+      - name: Run the pipeline (--no-llm, sample fixture)
+        run: python -m pipeline --no-llm --sample --skip-tuning --out-root ./ci_out
 
-      - name: Tests
-        run: pytest -q
+      - name: Check the run succeeded and produced every required artifact
+        run: python scripts/ci_check_success_run.py ./ci_out
 
-# The end-to-end `python -m pipeline --no-llm --sample` job is added in US-35,
-# once the pipeline and the sample fixture exist.
+      - name: The committed artifacts are untouched by an --out-root run
+        run: git diff --exit-code -- artifacts data/processed
+
+      - name: Upload run artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-no-llm-artifacts
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            ci_out/artifacts/run_log.json
+            ci_out/artifacts/validation_report.json
+            ci_out/artifacts/reports/evaluation_report.md
+            ci_out/artifacts/reports/model_card.md
+            ci_out/artifacts/reports/insights.md
+            ci_out/artifacts/reports/eda_report.html
+            ci_out/logs/
+
+  # ------------------------------------------- a broken input stops it *nicely*
+  failure-path:
+    name: failure-path
+    needs: lint-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e .
+
+      # `|| true` keeps the step from failing on the non-zero exit we are here to assert; the
+      # exit code is captured and handed to the checker, which requires exactly 2.
+      - name: Run the pipeline on a raw file with no Quantity column
+        run: |
+          set +e
+          python -m pipeline --no-llm --skip-tuning \
+            --raw tests/fixtures/raw_sample_missing_quantity.csv \
+            --out-root ./ci_out_fail 2> ci_stderr.txt
+          echo "exit_code=$?" >> "$GITHUB_ENV"
+          set -e
+          cat ci_stderr.txt
+
+      - name: Check it stopped gracefully with exit code 2
+        run: python scripts/ci_check_failure_run.py ./ci_out_fail "$exit_code" ci_stderr.txt
+
+      - name: A failed run never touches the published artifacts (§39)
+        run: git diff --exit-code -- artifacts data/processed
+
+      - name: Upload the failure report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failure-path-artifacts
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            ci_out_fail/artifacts/validation_report.json
+            ci_out_fail/artifacts/run_log.json
+            ci_stderr.txt
+
+  # ------------------------------------------------- the same numbers, twice
+  determinism:
+    name: determinism
+    needs: lint-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e .
+
+      # US-34's in-process determinism/seed/metadata suites, plus the two long-running tests that
+      # `lint-test` deselects with -m "not slow" — so no test in the repository goes unrun in CI.
+      - name: Reproducibility test suites
+        run: |
+          pytest -q tests/test_determinism.py tests/test_seed_audit.py \
+                    tests/test_run_metadata.py tests/test_requirements_pinned.py
+          pytest -q -m slow
+
+      # The command-line half of the same guarantee: two real subprocesses, two output roots.
+      - name: Run the pipeline twice into separate output roots
+        run: |
+          python -m pipeline --no-llm --sample --skip-tuning --out-root ./ci_out_a
+          python -m pipeline --no-llm --sample --skip-tuning --out-root ./ci_out_b
+
+      - name: Compare the numeric artifacts byte for byte
+        run: python scripts/ci_check_determinism.py ./ci_out_a ./ci_out_b

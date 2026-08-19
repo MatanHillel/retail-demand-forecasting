@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -477,3 +478,23 @@ def test_flow_validation_error_accepts_an_explicit_message() -> None:
     result = ValidationResult(step="artifact_validation", passed=False)
     error = FlowValidationError(result, "model.joblib was not generated")
     assert str(error) == "FLOW STOPPED: model.joblib was not generated"
+
+def test_a_relative_base_dir_is_resolved_to_an_absolute_path(tmp_path, monkeypatch) -> None:
+    """A relative ``--out-root`` must not be applied twice (US-35).
+
+    ``out()`` re-homes a relative path onto ``base_dir``, so a relative ``base_dir`` used to make
+    every artifact land under ``ci_out/ci_out/...`` — written where the next step's reader does
+    not look, which surfaced as a mid-run ``FileNotFoundError`` rather than as a bad path.
+    """
+    monkeypatch.chdir(tmp_path)
+    ctx = RunContext.start(mode="no-llm", base_dir=Path("ci_out"))
+    try:
+        assert ctx.base_dir.is_absolute()
+        assert ctx.base_dir == (tmp_path / "ci_out").resolve()
+
+        written = ctx.out(Path("data/processed/clean_data.csv"))
+        assert written == ctx.base_dir / "data" / "processed" / "clean_data.csv"
+        # The give-away of the old double-prefixing.
+        assert "ci_out/ci_out" not in written.as_posix()
+    finally:
+        close_log_handlers(ctx.run_id)
