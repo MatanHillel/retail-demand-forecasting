@@ -1,5 +1,7 @@
 # Retail Demand Forecasting & Inventory Planning System
 
+[![ci](https://github.com/danielbfogel-lgtm/retail-demand-forecasting/actions/workflows/ci.yml/badge.svg)](https://github.com/danielbfogel-lgtm/retail-demand-forecasting/actions/workflows/ci.yml)
+
 A Streamlit application that analyses historical sales from the UCI *Online Retail II* dataset
 (Chen, 2019 — CC BY 4.0), uses **one global machine-learning model** to predict how many units each
 active product will sell next month, converts that forecast into a **Recommended Target Inventory**
@@ -70,5 +72,7 @@ CC BY 4.0; Kaggle mirror `mashlyn/online-retail-ii-uci`.
 ## Contributing
 
 Branch as `feature/US-NN-short-name`, open a pull request against protected `main` using the
-template, and get at least one review with a green `ci` check. See
+template, and get at least one review with all four CI checks green (`lint-test`,
+`pipeline-no-llm`, `failure-path`, `determinism`). Run `make ci-local` first to reproduce them
+on your own machine. See [`docs/contributing.md`](docs/contributing.md) and
 [`docs/branch_protection.md`](docs/branch_protection.md).

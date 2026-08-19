@@ -289,7 +289,12 @@ class RunContext(BaseModel):
             config_snapshot=config_snapshot(),
             versions=_package_versions(),
         )
-        context._base_dir = paths.PROJECT_ROOT if base_dir is None else Path(base_dir)
+        # Always absolute. `out()` re-homes a *relative* path onto the base directory, so a
+        # relative base_dir (e.g. `--out-root ./ci_out`) would be applied twice and every artifact
+        # would land under `ci_out/ci_out/…`, where the next step's reader cannot find it (US-35).
+        context._base_dir = (
+            paths.PROJECT_ROOT if base_dir is None else Path(base_dir).resolve()
+        )
         context._staging = staging
         context._logger = get_logger(run_id, context._base_dir)
         context.logger.info(f"run {run_id} started (mode={mode}, staging={staging})")
